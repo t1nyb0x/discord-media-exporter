@@ -31,6 +31,7 @@ const selectionSummary = requireElement<HTMLElement>('selection-summary');
 const notice = requireElement<HTMLElement>('notice');
 const progress = requireElement<HTMLElement>('progress');
 const progressSummary = requireElement<HTMLElement>('progress-summary');
+const progressList = requireElement<HTMLUListElement>('progress-list');
 
 scanButton.addEventListener('click', () => void scanVisibleMedia());
 kindFilter.addEventListener('change', () => {
@@ -191,6 +192,33 @@ function renderProgress(downloadState: DownloadBatchState): void {
     `待機 ${counts.queued}`,
     `失敗 ${counts.failed}`,
   ].join(' / ');
+
+  progressList.replaceChildren();
+  for (const downloadItem of downloadState.items) {
+    const item = document.createElement('li');
+    item.className = `progress-item progress-item-${downloadItem.status}`;
+
+    const status = document.createElement('span');
+    status.className = 'progress-status';
+    status.textContent = downloadStatusLabel(downloadItem.status);
+
+    const details = document.createElement('span');
+    details.className = 'progress-details';
+    const filename = document.createElement('span');
+    filename.className = 'progress-filename';
+    filename.textContent = downloadItem.filename;
+    details.append(filename);
+
+    if (downloadItem.error !== undefined) {
+      const error = document.createElement('span');
+      error.className = 'progress-error';
+      error.textContent = downloadItem.error;
+      details.append(error);
+    }
+
+    item.append(status, details);
+    progressList.append(item);
+  }
 }
 
 function filteredCandidates(): MediaCandidate[] {
@@ -231,6 +259,19 @@ function mediaKindLabel(kind: MediaKind): string {
       return '動画';
     case 'file':
       return 'その他';
+  }
+}
+
+function downloadStatusLabel(status: DownloadBatchState['items'][number]['status']): string {
+  switch (status) {
+    case 'queued':
+      return '待機';
+    case 'in_progress':
+      return '保存中';
+    case 'complete':
+      return '完了';
+    case 'failed':
+      return '失敗';
   }
 }
 

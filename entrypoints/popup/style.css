@@ -246,6 +246,59 @@ select {
   font-size: 12px;
 }
 
+.progress-list {
+  display: grid;
+  gap: 6px;
+  max-height: 150px;
+  margin: 10px 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.progress-item {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding-top: 6px;
+  border-top: 1px solid #3f4147;
+  font-size: 11px;
+}
+
+.progress-status {
+  color: #b5bac1;
+  font-weight: 700;
+}
+
+.progress-item-complete .progress-status {
+  color: #57f287;
+}
+
+.progress-item-failed .progress-status,
+.progress-error {
+  color: #fa777c;
+}
+
+.progress-details,
+.progress-filename,
+.progress-error {
+  display: block;
+  min-width: 0;
+}
+
+.progress-filename {
+  overflow: hidden;
+  color: #dbdee1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress-error {
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
 .notice {
   min-height: 18px;
   margin: 12px 0 0;

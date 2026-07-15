@@ -6,8 +6,9 @@
 
 - Phase 0: ADR-0001 を Accepted とし、限定用途・配布方針を決定済み
 - Phase 1: 基盤、合成 fixture、自動テスト、production build、実 Discord の基本スモークテストは完了
-- Phase 1 残作業: スポイラー、期限切れ URL、ネットワーク異常等の追加検証
-- Phase 2: UI とダウンロードフローの初期実装済み。基本フローは動作確認済み
+- Phase 1 残作業: スポイラー等の画面バリエーションの追加検証
+- Phase 2: 候補単位の失敗表示、キュー異常系、再起動後の状態再照合を実装済み
+- Phase 2 残作業: hardening 版の手動回帰、依存関係監査、実ブラウザ E2E
 
 ## Phase 0: Discovery / Policy gate
 

@@ -70,6 +70,7 @@ Discord 固有のセレクターと抽出規則を閉じ込める境界です。
 - `chrome.downloads.onChanged` による状態更新
 - 同時実行数の制御
 - popup 再表示時の状態返却
+- service worker 再起動時の `chrome.downloads.search()` による状態再照合
 
 service worker は停止・再起動される前提とし、検証済み候補と処理状態を `chrome.storage.session` に保持します。メディア本体や完全な URL 履歴を永続保存しません。
 
@@ -162,7 +163,7 @@ type ExtensionMessage =
 - 最大同時ダウンロード数は 3
 - MVP では自動リトライしない
 - エラー表示から URL クエリと個人情報を除去
-- service worker の処理状態は `chrome.storage.session` から復元する
+- service worker の処理状態は `chrome.storage.session` から復元し、既知の download ID を `chrome.downloads.search()` で再照合する
 
 ## 10. テスト戦略
 
