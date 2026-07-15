@@ -1,0 +1,71 @@
+import { readdir, readFile } from 'node:fs/promises';
+import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
+
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const outputDirectory = path.join(projectRoot, '.output', 'chrome-mv3');
+const expectedPermissions = ['activeTab', 'downloads', 'scripting', 'storage'];
+const requiredFiles = ['background.js', 'manifest.json', 'popup.html', 'scan.js'];
+const forbiddenPatterns = [
+  /(^|\/)tests?(\/|$)/i,
+  /(^|\/)fixtures?(\/|$)/i,
+  /\.map$/i,
+  /\.pem$/i,
+  /\.ts$/i,
+];
+
+export async function verifyRelease() {
+  const files = await listFiles(outputDirectory);
+  const relativeFiles = files.map((file) => path.relative(outputDirectory, file));
+
+  for (const requiredFile of requiredFiles) {
+    if (!relativeFiles.includes(requiredFile)) {
+      throw new Error(`Required release file is missing: ${requiredFile}`);
+    }
+  }
+
+  const forbiddenFile = relativeFiles.find((file) =>
+    forbiddenPatterns.some((pattern) => pattern.test(file)),
+  );
+  if (forbiddenFile !== undefined) {
+    throw new Error(`Forbidden file found in release output: ${forbiddenFile}`);
+  }
+
+  const manifestPath = path.join(outputDirectory, 'manifest.json');
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const actualPermissions = [...(manifest.permissions ?? [])].sort();
+  if (JSON.stringify(actualPermissions) !== JSON.stringify(expectedPermissions)) {
+    throw new Error(`Unexpected manifest permissions: ${actualPermissions.join(', ')}`);
+  }
+  if (manifest.host_permissions !== undefined) {
+    throw new Error('Release manifest must not contain host_permissions.');
+  }
+  if (manifest.content_scripts !== undefined) {
+    throw new Error('Release manifest must not contain persistent content_scripts.');
+  }
+
+  const packageJson = JSON.parse(await readFile(path.join(projectRoot, 'package.json'), 'utf8'));
+  if (manifest.version !== packageJson.version) {
+    throw new Error(
+      `Manifest version ${manifest.version} does not match package version ${packageJson.version}.`,
+    );
+  }
+
+  console.log(`Release verification passed (${relativeFiles.length} files, v${manifest.version}).`);
+}
+
+async function listFiles(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...(await listFiles(entryPath)));
+    else files.push(entryPath);
+  }
+  return files;
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  await verifyRelease();
+}

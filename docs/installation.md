@@ -37,27 +37,38 @@
 
 ## SHA-256 の確認例
 
-配布ファイル名を `discord-media-exporter-0.1.0.zip` とした例です。
+配布ファイル名を `discord-media-exporter-0.2.0-chrome.zip` とした例です。
 
 ### Windows PowerShell
 
 ```powershell
-Get-FileHash .\discord-media-exporter-0.1.0.zip -Algorithm SHA256
+Get-FileHash .\discord-media-exporter-0.2.0-chrome.zip -Algorithm SHA256
 ```
 
 ### macOS
 
 ```bash
-shasum -a 256 discord-media-exporter-0.1.0.zip
+shasum -a 256 discord-media-exporter-0.2.0-chrome.zip
 ```
 
 ### Linux
 
 ```bash
-sha256sum discord-media-exporter-0.1.0.zip
+sha256sum discord-media-exporter-0.2.0-chrome.zip
 ```
 
 ハッシュが一致しない場合は、展開もインストールもせず配布元へ連絡してください。
+
+開発者は次のコマンドで、全検証、配布ZIP、SHA-256ファイルを生成します。
+
+```bash
+pnpm release:prepare
+```
+
+生成物:
+
+- `.output/discord-media-exporter-0.2.0-chrome.zip`
+- `.output/discord-media-exporter-0.2.0-chrome.zip.sha256`
 
 ## 更新
 
