@@ -46,6 +46,15 @@ describe('popup download progress', () => {
     });
     loadPopupFixture();
 
+    expect(document.documentElement.lang).toBe('ja');
+    expect(document.querySelector('label[for="kind-filter"]')).not.toBeNull();
+    expect(
+      [...document.querySelectorAll<HTMLButtonElement>('button')].every(
+        (button) => button.textContent?.trim() !== '',
+      ),
+    ).toBe(true);
+    expect(document.getElementById('notice')?.getAttribute('aria-live')).toBe('polite');
+
     await import('../../entrypoints/popup/main');
     await Promise.resolve();
     await Promise.resolve();

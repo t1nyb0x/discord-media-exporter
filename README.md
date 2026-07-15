@@ -7,8 +7,8 @@
 
 ## 現在の状態
 
-- フェーズ: Phase 2 / MVP hardening
-- 実装: 自動テスト、production build、実 Discord での基本スモークテストが成功する初期版
+- フェーズ: Phase 4 / Limited maintenance
+- 実装: `0.2.0` の自動検証、配布物検証、Chrome 実機確認が完了
 - 対象: Google Chrome、Manifest V3
 - 最初の対象画面: `https://discord.com/channels/*`
 - 目的: 表示中メディアの保存支援
@@ -31,12 +31,13 @@
 - unpacked extension の読み込み
 - 実際の Discord チャンネルにおける表示中メディアの検出
 - 候補の選択とダウンロード
+- `0.2.0` 限定配布候補の回帰確認
 
 追加検証が必要:
 
 - スポイラー付き添付などの画面バリエーション
-- DOM 変更時の安全な失敗
 - ネットワーク切断や期限切れ URL などの異常系
+- Chrome/Discord の更新後の実機回帰
 
 ## MVP の概要
 
@@ -67,8 +68,12 @@ pnpm build
 - [セキュリティとプライバシー](docs/security-and-privacy.md)
 - [開発ガイド](docs/development.md)
 - [インストール・更新ガイド](docs/installation.md)
+- [0.2.0 リリースノート](docs/release-notes-0.2.0.md)
+- [限定配布テストチェックリスト](docs/testing/limited-beta-checklist.md)
+- [保守・更新方針](docs/maintenance.md)
 - [ロードマップ](docs/roadmap.md)
 - [ADR-0001: 表示中メディアの保存支援](docs/adr/0001-user-initiated-dom-export.md)
+- [ADR-0002: 少人数への unpacked 配布を継続する](docs/adr/0002-continue-limited-unpacked-distribution.md)
 
 ## 実装開始の条件
 

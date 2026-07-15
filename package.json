@@ -1,6 +1,6 @@
 {
   "name": "discord-media-exporter",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "User-initiated helper for downloading visible Discord media.",
@@ -18,7 +18,10 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "release:verify": "node scripts/verify-release.mjs",
+    "release:checksum": "node scripts/write-checksum.mjs",
+    "release:prepare": "node scripts/prepare-release.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

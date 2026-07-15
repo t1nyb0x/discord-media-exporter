@@ -8,7 +8,11 @@
 - Phase 1: 基盤、合成 fixture、自動テスト、production build、実 Discord の基本スモークテストは完了
 - Phase 1 残作業: スポイラー等の画面バリエーションの追加検証
 - Phase 2: 候補単位の失敗表示、キュー異常系、再起動後の状態再照合を実装済み
-- Phase 2 残作業: hardening 版の手動回帰、依存関係監査、実ブラウザ E2E
+- Phase 3: `0.2.0` の配布 ZIP、SHA-256、リリースノート、限定テスト手順、保守手順を作成済み
+- Phase 3: 安全な DOM 非対応、非表示要素、アクセシビリティ、500 件の候補上限を自動テスト済み
+- Phase 3: Project owner による Chrome 実機確認で問題がなく、完了
+- Phase 4: 少人数への unpacked 配布継続を ADR-0002 で決定し、限定保守へ移行
+- 継続課題: 未確認の画面バリエーション、依存関係監査、実ブラウザ E2E
 
 ## Phase 0: Discovery / Policy gate
 
@@ -74,15 +78,18 @@
 - DOM 非対応時に安全に停止する
 - 保守担当と更新方針が決まっている
 
+配布候補と自動検証の結果は[Phase 3 リリース判定記録](reviews/phase3-release-readiness.md)を参照してください。
+
 ## Phase 4: Maintenance decision
 
-選択肢:
+決定:
 
-1. 少人数への unpacked 配布を継続する
-2. 組織の Chrome enterprise policy で管理する
-3. プロジェクトを終了する
+- [ADR-0002](adr/0002-continue-limited-unpacked-distribution.md)に基づき、少人数への unpacked 配布を継続する
+- Project owner が全利用者へ直接更新・停止連絡できる範囲に限定する
+- 最新版だけをサポートし、固定周期を設けず必要時に更新する
+- Chrome Web Store 公開、自己ホスト CRX、自動更新、遠隔測定は行わない
 
-Chrome Web Store への公開はスコープ外です。継続する場合は、手動更新の周知、配布物の真正性、ユーザーサポート、DOM 変更への保守を担当できる範囲に利用者を限定します。
+終了条件と再検討条件は[保守・更新方針](maintenance.md)に従います。これ以降は独立した開発フェーズではなく、利用者報告、DOM 変更、依存関係更新、規約・仕様変更を起点とした保守サイクルで管理します。
 
 ## MVP 後の候補
 
