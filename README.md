@@ -7,7 +7,7 @@
 
 ## 現在の状態
 
-- フェーズ: Technical spike / MVP 実装
+- フェーズ: Phase 2 / MVP hardening
 - 実装: 自動テスト、production build、実 Discord での基本スモークテストが成功する初期版
 - 対象: Google Chrome、Manifest V3
 - 最初の対象画面: `https://discord.com/channels/*`
@@ -22,7 +22,9 @@
 - 画像、動画、その他添付の一覧・絞り込み・選択
 - 安全なファイル名による最大 3 件ずつのダウンロード
 - popup を閉じた場合に備えたセッション内の進捗保持
-- URL、ファイル名、可視範囲、DOM fixture の単体テスト
+- URL、ファイル名、可視範囲、DOM fixture、ダウンロード状態遷移の単体テスト
+- ファイル単位のダウンロード進捗・失敗理由の表示
+- service worker 再起動後のダウンロード状態再照合
 
 2026-07-15 に確認済み:
 
