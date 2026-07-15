@@ -33,3 +33,18 @@ export interface DownloadItemState {
 export interface DownloadBatchState {
   items: DownloadItemState[];
 }
+
+export type ZipExportStatus =
+  'idle' | 'fetching' | 'packing' | 'saving' | 'complete' | 'failed' | 'cancelled';
+
+export interface ZipExportState {
+  status: ZipExportStatus;
+  jobId?: string;
+  archiveFilename?: string;
+  totalItems: number;
+  completedItems: number;
+  processedBytes: number;
+  currentFilename?: string;
+  downloadId?: number;
+  error?: string;
+}

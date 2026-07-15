@@ -2,6 +2,27 @@
 
 このプロジェクトの利用者向け変更を記録します。バージョンは Semantic Versioning に従います。
 
+## [0.3.0] - 2026-07-15
+
+### Added
+
+- 選択した表示中メディアを一つのZIPへまとめる出力
+- ZIPの取得件数、処理ファイル、バイト数、完了・失敗・キャンセル表示
+- 100件、1ファイル50 MiB、合計100 MiBのZIP出力上限
+- `main`更新時に配布ZIPとSHA-256をGitHub Releaseへ添付するworkflow
+
+### Security
+
+- ZIP利用時だけDiscord CDN 2ホストへの任意権限を要求し、終了時に解放
+- redirect後のURL、実読込バイト数、ZIP内ファイル名を再検証
+- Cookie、Authorization header、外部ZIPサービスを不使用
+- `fflate`を0.8.3へ固定し、MITライセンスを配布物へ同梱
+
+### Known limitations
+
+- ZIP生成はChrome終了や拡張機能更新をまたいで再開できない
+- 100 MiB上限のChrome実機メモリ計測と実Discordでの手動確認がリリースゲートとして残っている
+
 ## [0.2.0] - 2026-07-15
 
 ### Added

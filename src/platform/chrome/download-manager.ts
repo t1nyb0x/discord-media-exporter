@@ -60,6 +60,14 @@ export function getDownloadState(): Promise<DownloadBatchState> {
   return manager.getDownloadState();
 }
 
+export function getRegisteredCandidates(candidateIds: string[]): Promise<MediaCandidate[]> {
+  return manager.getRegisteredCandidates(candidateIds);
+}
+
+export function hasActiveDownloads(): Promise<boolean> {
+  return manager.hasActiveDownloads();
+}
+
 export function handleDownloadChanged(delta: DownloadDelta): Promise<void> {
   const state = delta.state?.current;
   if (state !== 'complete' && state !== 'interrupted') return Promise.resolve();

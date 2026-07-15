@@ -7,8 +7,8 @@
 
 ## 現在の状態
 
-- フェーズ: Phase 4 / Limited maintenance
-- 実装: `0.2.0` の自動検証、配布物検証、Chrome 実機確認が完了
+- フェーズ: Phase 5 / Media ZIP export verification
+- 実装: `0.3.0` のZIP出力と自動検証が完了。Chrome実機確認は未完了
 - 対象: Google Chrome、Manifest V3
 - 最初の対象画面: `https://discord.com/channels/*`
 - 目的: 表示中メディアの保存支援
@@ -25,6 +25,9 @@
 - URL、ファイル名、可視範囲、DOM fixture、ダウンロード状態遷移の単体テスト
 - ファイル単位のダウンロード進捗・失敗理由の表示
 - service worker 再起動後のダウンロード状態再照合
+- 選択項目のメディアZIP出力、進捗、キャンセル
+- 100件・1ファイル50 MiB・合計100 MiBのZIP上限
+- ZIP終了時の任意CDN権限解放
 
 2026-07-15 に確認済み:
 
@@ -38,6 +41,17 @@
 - スポイラー付き添付などの画面バリエーション
 - ネットワーク切断や期限切れ URL などの異常系
 - Chrome/Discord の更新後の実機回帰
+- ZIP出力の25 / 50 / 100 MiBメモリ計測
+- 実DiscordでのZIP保存、展開、権限解放
+
+Phase 5の実装方針:
+
+- 選択したメディアを一つの ZIP にまとめる出力を追加
+- 既存の個別保存と表示範囲の制約は維持
+- 初期上限は 100 件・合計 100 MiB とし、実装 spike の実機計測で確定
+- ZIP 利用時だけ Discord CDN 2 ホストへの任意アクセスを要求
+
+要件と実装順は[メディア ZIP 出力仕様](docs/zip-export.md)、設計判断は[ADR-0003](docs/adr/0003-generate-media-zip-locally.md)を参照してください。
 
 ## MVP の概要
 
@@ -69,11 +83,20 @@ pnpm build
 - [開発ガイド](docs/development.md)
 - [インストール・更新ガイド](docs/installation.md)
 - [0.2.0 リリースノート](docs/release-notes-0.2.0.md)
+- [0.3.0 リリースノート](docs/release-notes-0.3.0.md)
 - [限定配布テストチェックリスト](docs/testing/limited-beta-checklist.md)
+- [Phase 5 メディアZIP手動テスト](docs/testing/zip-export-checklist.md)
+- [Phase 5 自動検証記録](docs/reviews/phase5-automated-verification.md)
 - [保守・更新方針](docs/maintenance.md)
 - [ロードマップ](docs/roadmap.md)
+- [メディア ZIP 出力仕様](docs/zip-export.md)
 - [ADR-0001: 表示中メディアの保存支援](docs/adr/0001-user-initiated-dom-export.md)
 - [ADR-0002: 少人数への unpacked 配布を継続する](docs/adr/0002-continue-limited-unpacked-distribution.md)
+- [ADR-0003: メディア ZIP を拡張機能内で生成する](docs/adr/0003-generate-media-zip-locally.md)
+
+## リリース
+
+`main`へ反映されるとGitHub Actionsが全検査を実行し、`package.json`のバージョンをタグにしたGitHub Releaseを作成します。Releaseにはunpacked配布用ZIPとSHA-256ファイルを添付します。公開済みバージョンは上書きしないため、`main`へマージする変更では事前にバージョンを更新してください。
 
 ## 実装開始の条件
 

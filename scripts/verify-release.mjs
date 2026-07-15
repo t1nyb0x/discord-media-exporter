@@ -5,8 +5,19 @@ import { fileURLToPath } from 'node:url';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outputDirectory = path.join(projectRoot, '.output', 'chrome-mv3');
-const expectedPermissions = ['activeTab', 'downloads', 'scripting', 'storage'];
-const requiredFiles = ['background.js', 'manifest.json', 'popup.html', 'scan.js'];
+const expectedPermissions = ['activeTab', 'downloads', 'offscreen', 'scripting', 'storage'];
+const expectedOptionalHostPermissions = [
+  'https://cdn.discordapp.com/*',
+  'https://media.discordapp.net/*',
+];
+const requiredFiles = [
+  'THIRD_PARTY_NOTICES.txt',
+  'background.js',
+  'manifest.json',
+  'offscreen.html',
+  'popup.html',
+  'scan.js',
+];
 const forbiddenPatterns = [
   /(^|\/)tests?(\/|$)/i,
   /(^|\/)fixtures?(\/|$)/i,
@@ -40,6 +51,15 @@ export async function verifyRelease() {
   }
   if (manifest.host_permissions !== undefined) {
     throw new Error('Release manifest must not contain host_permissions.');
+  }
+  const actualOptionalHostPermissions = [...(manifest.optional_host_permissions ?? [])].sort();
+  if (
+    JSON.stringify(actualOptionalHostPermissions) !==
+    JSON.stringify(expectedOptionalHostPermissions)
+  ) {
+    throw new Error(
+      `Unexpected optional host permissions: ${actualOptionalHostPermissions.join(', ')}`,
+    );
   }
   if (manifest.content_scripts !== undefined) {
     throw new Error('Release manifest must not contain persistent content_scripts.');
