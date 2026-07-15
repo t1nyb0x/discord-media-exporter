@@ -1,23 +1,29 @@
 import { browser } from 'wxt/browser';
 import { DownloadManager, type DownloadPlatform } from '../../domain/download-manager';
 import { sanitizeFilename } from '../../domain/filename';
-import type { DownloadBatchState, MediaCandidate } from '../../domain/media';
+import type { CandidateCollection, DownloadBatchState, MediaCandidate } from '../../domain/media';
 
 type DownloadDelta = Parameters<Parameters<typeof browser.downloads.onChanged.addListener>[0]>[0];
 
 const REGISTRY_KEY = 'candidateRegistry';
 const BATCH_KEY = 'downloadBatch';
+const COLLECTION_SCOPE_KEY = 'candidateCollectionScope';
 const DOWNLOAD_DIRECTORY = 'Discord Media Exporter';
 
 class ChromeDownloadPlatform implements DownloadPlatform {
   async loadSession(): Promise<Record<string, unknown>> {
-    return browser.storage.session.get([REGISTRY_KEY, BATCH_KEY]);
+    return browser.storage.session.get([REGISTRY_KEY, BATCH_KEY, COLLECTION_SCOPE_KEY]);
   }
 
-  async saveSession(candidates: MediaCandidate[], batch: DownloadBatchState): Promise<void> {
+  async saveSession(
+    candidates: MediaCandidate[],
+    batch: DownloadBatchState,
+    collectionScope: string | null,
+  ): Promise<void> {
     await browser.storage.session.set({
       [REGISTRY_KEY]: candidates,
       [BATCH_KEY]: batch,
+      [COLLECTION_SCOPE_KEY]: collectionScope,
     });
   }
 
@@ -48,8 +54,19 @@ class ChromeDownloadPlatform implements DownloadPlatform {
 
 const manager = new DownloadManager(new ChromeDownloadPlatform());
 
-export function registerCandidates(candidates: unknown[]): Promise<number> {
-  return manager.registerCandidates(candidates);
+export function registerCandidates(
+  candidates: unknown[],
+  scope: string,
+): Promise<CandidateCollection> {
+  return manager.registerCandidates(candidates, scope);
+}
+
+export function getCandidateCollection(scope: string): Promise<CandidateCollection> {
+  return manager.getCandidateCollection(scope);
+}
+
+export function clearCandidateCollection(scope: string): Promise<CandidateCollection> {
+  return manager.clearCandidateCollection(scope);
 }
 
 export function startDownloads(candidateIds: string[]): Promise<DownloadBatchState> {

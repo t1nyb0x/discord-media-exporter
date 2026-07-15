@@ -16,19 +16,21 @@
 - 失敗時に部分ZIPを保存しない処理
 - 完了、失敗、キャンセル後の任意権限・Blob URL・offscreen document解放
 - `fflate 0.8.3`の固定とMITライセンス通知の配布物同梱
+- ユーザー開始後のscroll・DOM変更監視による候補自動累積、停止、popup再表示時の復元、明示クリア
+- チャンネル単位の分離とセッション候補500件上限
 
 ## 自動検証結果
 
 - `pnpm lint`: Pass
 - `pnpm typecheck`: Pass
-- `pnpm test`: Pass（11 files / 37 tests）
+- `pnpm test`: Pass（13 files / 44 tests）
 - `pnpm format:check`: Pass
 - `pnpm zip`: Pass
 - 配布物manifest・不要ファイル・権限監査: Pass
 - `0.3.0`配布ZIP生成: Pass
 - SHA-256生成: Pass
 
-自動テストでは、ZIPの展開と内容一致、CRC検証、逐次fetch、Cookieなし、redirect拒否、宣言値と実読込値の容量上限、キャンセル、同名ファイル、offscreen lifecycle、Chrome download状態、任意権限解放、popup操作を確認しました。
+自動テストでは、ZIPの展開と内容一致、CRC検証、逐次fetch、Cookieなし、redirect拒否、宣言値と実読込値の容量上限、キャンセル、同名ファイル、offscreen lifecycle、Chrome download状態、任意権限解放、scroll後の自動候補追加、停止、チャンネル変更時の自動停止、別チャンネル分離、popup再表示時の復元と明示クリアを確認しました。
 
 ## 依存関係監査
 

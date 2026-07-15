@@ -8,15 +8,22 @@ const IMAGE_EXTENSIONS = new Set(['avif', 'bmp', 'gif', 'jpeg', 'jpg', 'png', 's
 const VIDEO_EXTENSIONS = new Set(['avi', 'm4v', 'mkv', 'mov', 'mp4', 'webm']);
 
 export function isDiscordChannelUrl(input: string): boolean {
+  return discordChannelScope(input) !== null;
+}
+
+export function discordChannelScope(input: string): string | null {
   try {
     const url = new URL(input);
-    return (
-      url.protocol === 'https:' &&
-      url.hostname === DISCORD_CHANNEL_HOST &&
-      url.pathname.startsWith('/channels/')
-    );
+    if (
+      url.protocol !== 'https:' ||
+      url.hostname !== DISCORD_CHANNEL_HOST ||
+      !url.pathname.startsWith('/channels/')
+    ) {
+      return null;
+    }
+    return `${url.origin}${url.pathname}`;
   } catch {
-    return false;
+    return null;
   }
 }
 

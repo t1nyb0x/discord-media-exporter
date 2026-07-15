@@ -1,6 +1,7 @@
 import { browser } from 'wxt/browser';
 import './style.css';
 import type {
+  CandidateCollection,
   DownloadBatchState,
   MediaCandidate,
   MediaKind,
@@ -8,6 +9,8 @@ import type {
   ZipExportState,
 } from '../../src/domain/media';
 import { MAX_ZIP_ITEMS } from '../../src/domain/zip-export';
+import { MAX_COLLECTED_CANDIDATES } from '../../src/domain/download-manager';
+import { discordChannelScope } from '../../src/domain/url';
 import { isValidMediaCandidate } from '../../src/domain/validation';
 import { isRecord, type ExtensionRequest, type ExtensionResponse } from '../../src/shared/messages';
 import { ZIP_HOST_ORIGINS } from '../../src/shared/permissions';
@@ -17,11 +20,13 @@ const state: {
   selectedIds: Set<string>;
   filter: MediaKind | 'all';
   zipActive: boolean;
+  collectorActive: boolean;
 } = {
   candidates: [],
   selectedIds: new Set(),
   filter: 'all',
   zipActive: false,
+  collectorActive: false,
 };
 
 const scanButton = requireElement<HTMLButtonElement>('scan-button');
@@ -31,6 +36,7 @@ const candidateCount = requireElement<HTMLElement>('candidate-count');
 const kindFilter = requireElement<HTMLSelectElement>('kind-filter');
 const selectAllButton = requireElement<HTMLButtonElement>('select-all-button');
 const clearButton = requireElement<HTMLButtonElement>('clear-button');
+const clearCollectionButton = requireElement<HTMLButtonElement>('clear-collection-button');
 const downloadButton = requireElement<HTMLButtonElement>('download-button');
 const zipButton = requireElement<HTMLButtonElement>('zip-button');
 const selectionSummary = requireElement<HTMLElement>('selection-summary');
@@ -43,7 +49,7 @@ const zipProgressSummary = requireElement<HTMLElement>('zip-progress-summary');
 const zipProgressDetail = requireElement<HTMLElement>('zip-progress-detail');
 const zipCancelButton = requireElement<HTMLButtonElement>('zip-cancel-button');
 
-scanButton.addEventListener('click', () => void scanVisibleMedia());
+scanButton.addEventListener('click', () => void toggleMediaCollector());
 kindFilter.addEventListener('change', () => {
   state.filter = isMediaFilter(kindFilter.value) ? kindFilter.value : 'all';
   renderCandidates();
@@ -56,10 +62,15 @@ clearButton.addEventListener('click', () => {
   state.selectedIds.clear();
   renderCandidates();
 });
+clearCollectionButton.addEventListener('click', () => void clearScanCollection());
 downloadButton.addEventListener('click', () => void startSelectedDownloads());
 zipButton.addEventListener('click', () => void startSelectedZipExport());
 zipCancelButton.addEventListener('click', () => void cancelZipExport());
 
+const scanCollectionRestoration = restoreScanCollection();
+void scanCollectionRestoration;
+const collectorStatusRestoration = restoreCollectorStatus();
+void collectorStatusRestoration;
 void refreshDownloadStatus();
 void refreshZipExportStatus();
 const statusTimer = window.setInterval(() => {
@@ -68,13 +79,22 @@ const statusTimer = window.setInterval(() => {
 }, 1_000);
 window.addEventListener('unload', () => window.clearInterval(statusTimer));
 
-async function scanVisibleMedia(): Promise<void> {
-  setBusy(scanButton, true, '確認中…');
+async function toggleMediaCollector(): Promise<void> {
+  await collectorStatusRestoration;
+  if (state.collectorActive) await stopMediaCollector();
+  else await startMediaCollector();
+}
+
+async function startMediaCollector(): Promise<void> {
+  setBusy(scanButton, true, '開始中…');
   setNotice('');
+  let targetTabId: number | undefined;
 
   try {
+    await scanCollectionRestoration;
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
     if (tab?.id === undefined) throw new Error('対象タブを確認できませんでした。');
+    targetTabId = tab.id;
 
     const injectionResults = await browser.scripting.executeScript({
       target: { tabId: tab.id },
@@ -86,31 +106,122 @@ async function scanVisibleMedia(): Promise<void> {
 
     const response = await sendRequest({
       type: 'REGISTER_SCAN_RESULT',
+      scope: scanResult.scope,
       candidates: scanResult.candidates,
     });
     if (!response.ok) throw new Error(response.error);
+    if (response.type !== 'SCAN_REGISTERED') throw new Error('予期しない応答です。');
 
-    state.candidates = scanResult.candidates;
-    state.selectedIds.clear();
+    const previousIds = new Set(state.candidates.map((candidate) => candidate.id));
+    const addedCount = response.collection.candidates.filter(
+      (candidate) => !previousIds.has(candidate.id),
+    ).length;
+    applyCollection(response.collection);
+    state.collectorActive = true;
     results.hidden = false;
-    renderCandidates();
     setNotice(
-      scanResult.candidates.length === 0
-        ? '表示中の Discord 添付は見つかりませんでした。'
-        : `${scanResult.candidates.length}件を確認しました。`,
+      state.candidates.length >= MAX_COLLECTED_CANDIDATES && addedCount === 0
+        ? `自動収集を開始しました。収集上限の${MAX_COLLECTED_CANDIDATES}件に達しています。`
+        : scanResult.candidates.length === 0
+          ? `自動収集を開始しました。現在の表示範囲に添付はありません（収集中 ${state.candidates.length}件）。`
+          : `${addedCount}件を追加し、自動収集を開始しました（収集中 ${state.candidates.length}件）。`,
     );
   } catch (error) {
-    results.hidden = true;
-    state.candidates = [];
-    state.selectedIds.clear();
-    renderCandidates();
+    if (targetTabId !== undefined) {
+      await browser.tabs
+        .sendMessage(targetTabId, { type: 'STOP_MEDIA_COLLECTOR' })
+        .catch(() => null);
+    }
+    state.collectorActive = false;
+    results.hidden = state.candidates.length === 0;
     setNotice(
       error instanceof Error ? error.message : '表示中メディアの確認に失敗しました。',
       true,
     );
   } finally {
-    setBusy(scanButton, false, 'この表示範囲を確認');
+    setBusy(scanButton, false, collectorButtonLabel());
   }
+}
+
+async function stopMediaCollector(): Promise<void> {
+  setBusy(scanButton, true, '停止中…');
+  try {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id !== undefined) {
+      await browser.tabs.sendMessage(tab.id, { type: 'STOP_MEDIA_COLLECTOR' }).catch(() => null);
+    }
+    state.collectorActive = false;
+    setNotice(`自動収集を停止しました（収集中 ${state.candidates.length}件）。`);
+  } finally {
+    setBusy(scanButton, false, collectorButtonLabel());
+  }
+}
+
+async function restoreCollectorStatus(): Promise<void> {
+  try {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id === undefined) return;
+    const response: unknown = await browser.tabs.sendMessage(tab.id, {
+      type: 'GET_MEDIA_COLLECTOR_STATUS',
+    });
+    state.collectorActive =
+      isRecord(response) && response.active === true && (await getActiveChannelScope()) !== null;
+  } catch {
+    state.collectorActive = false;
+  } finally {
+    scanButton.textContent = collectorButtonLabel();
+  }
+}
+
+function collectorButtonLabel(): string {
+  return state.collectorActive ? '自動収集を停止' : '自動収集を開始';
+}
+
+async function restoreScanCollection(): Promise<void> {
+  try {
+    const scope = await getActiveChannelScope();
+    if (scope === null) return;
+    const response = await sendRequest({ type: 'GET_SCAN_COLLECTION', scope });
+    if (!response.ok || response.type !== 'SCAN_COLLECTION') return;
+    applyCollection(response.collection);
+    results.hidden = state.candidates.length === 0;
+    if (state.candidates.length > 0) {
+      setNotice(`${state.candidates.length}件の収集結果を復元しました。`);
+    }
+  } catch {
+    // A fresh scan remains available if the session collection cannot be restored.
+  }
+}
+
+async function clearScanCollection(): Promise<void> {
+  setBusy(clearCollectionButton, true, 'クリア中…');
+  try {
+    await scanCollectionRestoration;
+    const scope = await getActiveChannelScope();
+    if (scope === null) throw new Error('Discordのチャンネル画面を開いてください。');
+    const response = await sendRequest({ type: 'CLEAR_SCAN_COLLECTION', scope });
+    if (!response.ok) throw new Error(response.error);
+    if (response.type !== 'SCAN_COLLECTION_CLEARED') throw new Error('予期しない応答です。');
+    applyCollection(response.collection);
+    results.hidden = true;
+    setNotice('このチャンネルの収集結果をクリアしました。');
+  } catch (error) {
+    setNotice(error instanceof Error ? error.message : '収集結果をクリアできませんでした。', true);
+  } finally {
+    setBusy(clearCollectionButton, false, '収集をクリア');
+  }
+}
+
+async function getActiveChannelScope(): Promise<string | null> {
+  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  return typeof tab?.url === 'string' ? discordChannelScope(tab.url) : null;
+}
+
+function applyCollection(collection: CandidateCollection): void {
+  state.candidates = collection.candidates;
+  const candidateIds = new Set(collection.candidates.map((candidate) => candidate.id));
+  state.selectedIds = new Set([...state.selectedIds].filter((id) => candidateIds.has(id)));
+  renderCandidates();
 }
 
 async function startSelectedDownloads(): Promise<void> {
@@ -337,7 +448,12 @@ async function sendRequest(request: ExtensionRequest): Promise<ExtensionResponse
 function isScanResult(value: unknown): value is ScanResult {
   if (!isRecord(value) || typeof value.ok !== 'boolean') return false;
   if (value.ok) {
-    return Array.isArray(value.candidates) && value.candidates.every(isValidMediaCandidate);
+    return (
+      typeof value.scope === 'string' &&
+      discordChannelScope(value.scope) === value.scope &&
+      Array.isArray(value.candidates) &&
+      value.candidates.every(isValidMediaCandidate)
+    );
   }
   return typeof value.code === 'string' && typeof value.message === 'string';
 }
@@ -345,7 +461,20 @@ function isScanResult(value: unknown): value is ScanResult {
 function isExtensionResponse(value: unknown): value is ExtensionResponse {
   if (!isRecord(value) || typeof value.ok !== 'boolean') return false;
   if (!value.ok) return typeof value.error === 'string';
-  return typeof value.type === 'string';
+  if (typeof value.type !== 'string') return false;
+  if (['SCAN_REGISTERED', 'SCAN_COLLECTION', 'SCAN_COLLECTION_CLEARED'].includes(value.type)) {
+    return isCandidateCollection(value.collection);
+  }
+  return true;
+}
+
+function isCandidateCollection(value: unknown): value is CandidateCollection {
+  return (
+    isRecord(value) &&
+    (value.scope === null || typeof value.scope === 'string') &&
+    Array.isArray(value.candidates) &&
+    value.candidates.every(isValidMediaCandidate)
+  );
 }
 
 function isMediaFilter(value: string): value is MediaKind | 'all' {

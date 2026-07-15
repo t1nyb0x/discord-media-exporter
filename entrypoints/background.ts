@@ -2,6 +2,8 @@ import { defineBackground } from 'wxt/utils/define-background';
 import { browser } from 'wxt/browser';
 import {
   getDownloadState,
+  getCandidateCollection,
+  clearCandidateCollection,
   getRegisteredCandidates,
   handleDownloadChanged,
   hasActiveDownloads,
@@ -42,8 +44,17 @@ export default defineBackground(() => {
     try {
       switch (message.type) {
         case 'REGISTER_SCAN_RESULT': {
-          const count = await registerCandidates(message.candidates);
-          return { ok: true, type: 'SCAN_REGISTERED', count };
+          const collection = await registerCandidates(message.candidates, message.scope);
+          return { ok: true, type: 'SCAN_REGISTERED', collection };
+        }
+        case 'GET_SCAN_COLLECTION': {
+          const collection = await getCandidateCollection(message.scope);
+          return { ok: true, type: 'SCAN_COLLECTION', collection };
+        }
+        case 'CLEAR_SCAN_COLLECTION': {
+          if (await hasActiveZipExport()) throw new Error('ZIP出力の完了後にクリアしてください。');
+          const collection = await clearCandidateCollection(message.scope);
+          return { ok: true, type: 'SCAN_COLLECTION_CLEARED', collection };
         }
         case 'START_DOWNLOADS': {
           if (await hasActiveZipExport()) throw new Error('ZIP出力の完了後に保存してください。');

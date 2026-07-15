@@ -1,8 +1,15 @@
-import type { DownloadBatchState, DownloadItemState, MediaCandidate } from './media';
+import type {
+  CandidateCollection,
+  DownloadBatchState,
+  DownloadItemState,
+  MediaCandidate,
+} from './media';
 import { isValidMediaCandidate } from './validation';
 import { isRecord } from '../shared/messages';
+import { discordChannelScope } from './url';
 
 const MAX_CONCURRENT_DOWNLOADS = 3;
+export const MAX_COLLECTED_CANDIDATES = 500;
 
 export interface PlatformDownloadState {
   state: 'in_progress' | 'complete' | 'interrupted';
@@ -11,20 +18,25 @@ export interface PlatformDownloadState {
 
 export interface DownloadPlatform {
   loadSession(): Promise<Record<string, unknown>>;
-  saveSession(candidates: MediaCandidate[], batch: DownloadBatchState): Promise<void>;
+  saveSession(
+    candidates: MediaCandidate[],
+    batch: DownloadBatchState,
+    collectionScope: string | null,
+  ): Promise<void>;
   startDownload(candidate: MediaCandidate): Promise<number>;
   findDownload(downloadId: number): Promise<PlatformDownloadState | null>;
 }
 
 export class DownloadManager {
   private candidateRegistry = new Map<string, MediaCandidate>();
+  private collectionScope: string | null = null;
   private batchState: DownloadBatchState = { items: [] };
   private readonly activeDownloadIds = new Map<number, string>();
   private initialization: Promise<void> | undefined;
 
   constructor(private readonly platform: DownloadPlatform) {}
 
-  async registerCandidates(candidates: unknown[]): Promise<number> {
+  async registerCandidates(candidates: unknown[], scope: string): Promise<CandidateCollection> {
     await this.ensureInitialized();
     if (this.hasActiveBatch()) {
       throw new Error('進行中のダウンロードが完了してから再スキャンしてください。');
@@ -35,9 +47,46 @@ export class DownloadManager {
       throw new Error('検証できないメディア候補が含まれています。');
     }
 
-    this.candidateRegistry = new Map(validCandidates.map((candidate) => [candidate.id, candidate]));
+    if (discordChannelScope(scope) !== scope)
+      throw new Error('スキャン対象を検証できませんでした。');
+    if (this.collectionScope !== scope) {
+      this.candidateRegistry.clear();
+      this.collectionScope = scope;
+    }
+
+    for (const candidate of validCandidates) {
+      if (
+        this.candidateRegistry.has(candidate.id) ||
+        this.candidateRegistry.size < MAX_COLLECTED_CANDIDATES
+      ) {
+        this.candidateRegistry.set(candidate.id, candidate);
+      }
+    }
     await this.persistSession();
-    return this.candidateRegistry.size;
+    return this.cloneCollection();
+  }
+
+  async getCandidateCollection(scope: string): Promise<CandidateCollection> {
+    await this.ensureInitialized();
+    if (discordChannelScope(scope) !== scope || this.collectionScope !== scope) {
+      return { scope: null, candidates: [] };
+    }
+    return this.cloneCollection();
+  }
+
+  async clearCandidateCollection(scope: string): Promise<CandidateCollection> {
+    await this.ensureInitialized();
+    if (this.hasActiveBatch()) {
+      throw new Error('進行中のダウンロードが完了してから収集結果をクリアしてください。');
+    }
+    if (discordChannelScope(scope) !== scope)
+      throw new Error('対象チャンネルを検証できませんでした。');
+    if (this.collectionScope === scope) {
+      this.candidateRegistry.clear();
+      this.collectionScope = null;
+      await this.persistSession();
+    }
+    return { scope: null, candidates: [] };
   }
 
   async startDownloads(candidateIds: string[]): Promise<DownloadBatchState> {
@@ -173,6 +222,12 @@ export class DownloadManager {
         restoredCandidates.map((candidate) => [candidate.id, candidate]),
       );
     }
+    const rawScope = stored.candidateCollectionScope;
+    if (typeof rawScope === 'string' && discordChannelScope(rawScope) === rawScope) {
+      this.collectionScope = rawScope;
+    } else {
+      this.candidateRegistry.clear();
+    }
 
     const rawBatch = stored.downloadBatch;
     if (isRecord(rawBatch) && Array.isArray(rawBatch.items)) {
@@ -210,7 +265,18 @@ export class DownloadManager {
   }
 
   private async persistSession(): Promise<void> {
-    await this.platform.saveSession([...this.candidateRegistry.values()], this.cloneBatchState());
+    await this.platform.saveSession(
+      [...this.candidateRegistry.values()],
+      this.cloneBatchState(),
+      this.collectionScope,
+    );
+  }
+
+  private cloneCollection(): CandidateCollection {
+    return {
+      scope: this.collectionScope,
+      candidates: [...this.candidateRegistry.values()].map((candidate) => ({ ...candidate })),
+    };
   }
 }
 

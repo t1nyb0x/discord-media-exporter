@@ -3,6 +3,7 @@ import popupFixture from '../../entrypoints/popup/index.html?raw';
 import { stableCandidateId } from '../../src/domain/id';
 
 const candidateUrl = 'https://cdn.discordapp.com/attachments/111/222/photo.png';
+const channelScope = 'https://discord.com/channels/100/200';
 const candidate = {
   id: stableCandidateId('/attachments/111/222/photo.png'),
   sourceUrl: candidateUrl,
@@ -14,6 +15,7 @@ const candidate = {
 
 const browserMocks = vi.hoisted(() => ({
   sendMessage: vi.fn(),
+  sendTabMessage: vi.fn(),
   queryTabs: vi.fn(),
   executeScript: vi.fn(),
   requestPermission: vi.fn(),
@@ -23,7 +25,7 @@ const browserMocks = vi.hoisted(() => ({
 vi.mock('wxt/browser', () => ({
   browser: {
     runtime: { sendMessage: browserMocks.sendMessage },
-    tabs: { query: browserMocks.queryTabs },
+    tabs: { query: browserMocks.queryTabs, sendMessage: browserMocks.sendTabMessage },
     scripting: { executeScript: browserMocks.executeScript },
     permissions: {
       request: browserMocks.requestPermission,
@@ -36,20 +38,32 @@ describe('popup ZIP export', () => {
   afterEach(() => {
     vi.clearAllTimers();
     vi.useRealTimers();
+    vi.resetModules();
   });
 
   it('requests optional CDN access from the ZIP click and starts selected entries', async () => {
     vi.useFakeTimers();
-    browserMocks.queryTabs.mockResolvedValue([{ id: 1 }]);
+    browserMocks.queryTabs.mockResolvedValue([{ id: 1, url: channelScope }]);
     browserMocks.executeScript.mockResolvedValue([
-      { result: { ok: true, candidates: [candidate] } },
+      { result: { ok: true, scope: channelScope, candidates: [candidate] } },
     ]);
+    browserMocks.sendTabMessage.mockResolvedValue({ active: false });
     browserMocks.requestPermission.mockResolvedValue(true);
     browserMocks.removePermission.mockResolvedValue(true);
     browserMocks.sendMessage.mockImplementation(async (request: { type: string }) => {
       switch (request.type) {
         case 'REGISTER_SCAN_RESULT':
-          return { ok: true, type: 'SCAN_REGISTERED', count: 1 };
+          return {
+            ok: true,
+            type: 'SCAN_REGISTERED',
+            collection: { scope: channelScope, candidates: [candidate] },
+          };
+        case 'GET_SCAN_COLLECTION':
+          return {
+            ok: true,
+            type: 'SCAN_COLLECTION',
+            collection: { scope: null, candidates: [] },
+          };
         case 'GET_DOWNLOAD_STATUS':
           return { ok: true, type: 'DOWNLOAD_STATUS', state: { items: [] } };
         case 'GET_EXPORT_STATUS':
@@ -108,10 +122,7 @@ describe('popup ZIP export', () => {
 });
 
 async function flushPromises(): Promise<void> {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let index = 0; index < 12; index += 1) await Promise.resolve();
 }
 
 function loadPopupFixture(): void {

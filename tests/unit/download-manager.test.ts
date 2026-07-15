@@ -8,11 +8,13 @@ import { stableCandidateId } from '../../src/domain/id';
 import type { DownloadBatchState, MediaCandidate } from '../../src/domain/media';
 
 describe('DownloadManager', () => {
+  const scope = 'https://discord.com/channels/100/200';
+
   it('limits concurrent downloads and starts the next queued item after completion', async () => {
     const platform = new FakeDownloadPlatform();
     const manager = new DownloadManager(platform);
     const candidates = [1, 2, 3, 4].map(createCandidate);
-    await manager.registerCandidates(candidates);
+    await manager.registerCandidates(candidates, scope);
 
     const initial = await manager.startDownloads(candidates.map((candidate) => candidate.id));
 
@@ -46,7 +48,7 @@ describe('DownloadManager', () => {
     platform.failFilenames.add('file-2.png');
     const manager = new DownloadManager(platform);
     const candidates = [1, 2, 3, 4].map(createCandidate);
-    await manager.registerCandidates(candidates);
+    await manager.registerCandidates(candidates, scope);
 
     const state = await manager.startDownloads(candidates.map((candidate) => candidate.id));
 
@@ -68,7 +70,7 @@ describe('DownloadManager', () => {
     const platform = new FakeDownloadPlatform();
     const manager = new DownloadManager(platform);
     const candidates = [1, 2, 3, 4].map(createCandidate);
-    await manager.registerCandidates(candidates);
+    await manager.registerCandidates(candidates, scope);
     const initial = await manager.startDownloads(candidates.map((candidate) => candidate.id));
 
     await manager.handleDownloadChanged(
@@ -90,6 +92,7 @@ describe('DownloadManager', () => {
     const candidate = createCandidate(1);
     const platform = new FakeDownloadPlatform({
       candidateRegistry: [candidate],
+      candidateCollectionScope: scope,
       downloadBatch: {
         items: [
           {
@@ -115,6 +118,54 @@ describe('DownloadManager', () => {
       },
     ]);
   });
+
+  it('accumulates unique candidates in one channel and resets when the channel changes', async () => {
+    const manager = new DownloadManager(new FakeDownloadPlatform());
+    const first = createCandidate(1);
+    const second = createCandidate(2);
+
+    await manager.registerCandidates([first], scope);
+    const accumulated = await manager.registerCandidates([first, second], scope);
+
+    expect(accumulated).toEqual({ scope, candidates: [first, second] });
+    expect(await manager.getCandidateCollection(scope)).toEqual(accumulated);
+
+    const nextScope = 'https://discord.com/channels/100/300';
+    const reset = await manager.registerCandidates([second], nextScope);
+
+    expect(reset).toEqual({ scope: nextScope, candidates: [second] });
+    expect(await manager.getCandidateCollection(scope)).toEqual({ scope: null, candidates: [] });
+  });
+
+  it('restores a collected channel from session storage and allows it to be cleared', async () => {
+    const candidate = createCandidate(1);
+    const manager = new DownloadManager(
+      new FakeDownloadPlatform({
+        candidateRegistry: [candidate],
+        candidateCollectionScope: scope,
+      }),
+    );
+
+    expect(await manager.getCandidateCollection(scope)).toEqual({ scope, candidates: [candidate] });
+    expect(await manager.clearCandidateCollection(scope)).toEqual({ scope: null, candidates: [] });
+    expect(await manager.getCandidateCollection(scope)).toEqual({ scope: null, candidates: [] });
+  });
+
+  it('caps a collection accumulated across scans at 500 candidates', async () => {
+    const manager = new DownloadManager(new FakeDownloadPlatform());
+
+    await manager.registerCandidates(
+      Array.from({ length: 300 }, (_, index) => createCandidate(index)),
+      scope,
+    );
+    const collection = await manager.registerCandidates(
+      Array.from({ length: 300 }, (_, index) => createCandidate(index + 300)),
+      scope,
+    );
+
+    expect(collection.candidates).toHaveLength(500);
+    expect(collection.candidates.at(-1)?.suggestedFilename).toBe('file-499.png');
+  });
 });
 
 class FakeDownloadPlatform implements DownloadPlatform {
@@ -129,8 +180,16 @@ class FakeDownloadPlatform implements DownloadPlatform {
     return clone(this.stored);
   }
 
-  async saveSession(candidates: MediaCandidate[], batch: DownloadBatchState): Promise<void> {
-    this.stored = clone({ candidateRegistry: candidates, downloadBatch: batch });
+  async saveSession(
+    candidates: MediaCandidate[],
+    batch: DownloadBatchState,
+    collectionScope: string | null,
+  ): Promise<void> {
+    this.stored = clone({
+      candidateRegistry: candidates,
+      downloadBatch: batch,
+      candidateCollectionScope: collectionScope,
+    });
   }
 
   async startDownload(candidate: MediaCandidate): Promise<number> {
