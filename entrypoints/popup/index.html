@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Discord Media Exporter</title>
+  </head>
+  <body>
+    <main class="app">
+      <header class="header">
+        <div>
+          <p class="eyebrow">Discord Media Exporter</p>
+          <h1>表示中メディア</h1>
+        </div>
+        <span id="candidate-count" class="count" aria-live="polite">0件</span>
+      </header>
+
+      <p class="description">
+        現在のメッセージ表示領域に見えている添付だけを確認します。画面外へ自動移動しません。
+      </p>
+
+      <button id="scan-button" class="button button-primary" type="button">
+        この表示範囲を確認
+      </button>
+
+      <section id="results" class="results" hidden>
+        <div class="toolbar" aria-label="メディアの絞り込み">
+          <label class="filter-label" for="kind-filter">種類</label>
+          <select id="kind-filter">
+            <option value="all">すべて</option>
+            <option value="image">画像</option>
+            <option value="video">動画</option>
+            <option value="file">その他</option>
+          </select>
+          <button id="select-all-button" class="button button-quiet" type="button">
+            表示中を選択
+          </button>
+          <button id="clear-button" class="button button-quiet" type="button">解除</button>
+        </div>
+
+        <ul id="candidate-list" class="candidate-list" aria-label="メディア候補"></ul>
+
+        <div class="download-panel">
+          <p id="selection-summary">0件を選択中</p>
+          <button id="download-button" class="button button-primary" type="button" disabled>
+            選択したメディアを保存
+          </button>
+        </div>
+      </section>
+
+      <section id="progress" class="progress" aria-live="polite" hidden>
+        <h2>ダウンロード状況</h2>
+        <p id="progress-summary"></p>
+      </section>
+
+      <p id="notice" class="notice" role="status" aria-live="polite"></p>
+      <p class="legal-note">保存する権利・許可のあるメディアだけを選択してください。</p>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
