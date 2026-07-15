@@ -3,6 +3,7 @@ import popupFixture from '../../entrypoints/popup/index.html?raw';
 import { stableCandidateId } from '../../src/domain/id';
 
 const candidateUrl = 'https://cdn.discordapp.com/attachments/111/222/photo.png';
+const channelScope = 'https://discord.com/channels/100/200';
 const candidate = {
   id: stableCandidateId('/attachments/111/222/photo.png'),
   sourceUrl: candidateUrl,
@@ -36,20 +37,31 @@ describe('popup ZIP export', () => {
   afterEach(() => {
     vi.clearAllTimers();
     vi.useRealTimers();
+    vi.resetModules();
   });
 
   it('requests optional CDN access from the ZIP click and starts selected entries', async () => {
     vi.useFakeTimers();
-    browserMocks.queryTabs.mockResolvedValue([{ id: 1 }]);
+    browserMocks.queryTabs.mockResolvedValue([{ id: 1, url: channelScope }]);
     browserMocks.executeScript.mockResolvedValue([
-      { result: { ok: true, candidates: [candidate] } },
+      { result: { ok: true, scope: channelScope, candidates: [candidate] } },
     ]);
     browserMocks.requestPermission.mockResolvedValue(true);
     browserMocks.removePermission.mockResolvedValue(true);
     browserMocks.sendMessage.mockImplementation(async (request: { type: string }) => {
       switch (request.type) {
         case 'REGISTER_SCAN_RESULT':
-          return { ok: true, type: 'SCAN_REGISTERED', count: 1 };
+          return {
+            ok: true,
+            type: 'SCAN_REGISTERED',
+            collection: { scope: channelScope, candidates: [candidate] },
+          };
+        case 'GET_SCAN_COLLECTION':
+          return {
+            ok: true,
+            type: 'SCAN_COLLECTION',
+            collection: { scope: null, candidates: [] },
+          };
         case 'GET_DOWNLOAD_STATUS':
           return { ok: true, type: 'DOWNLOAD_STATUS', state: { items: [] } };
         case 'GET_EXPORT_STATUS':

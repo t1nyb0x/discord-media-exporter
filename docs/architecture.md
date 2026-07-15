@@ -151,7 +151,9 @@ manifest の権限は以下です。
 
 ```ts
 type ExtensionMessage =
-  | { type: 'REGISTER_SCAN_RESULT'; candidates: MediaCandidate[] }
+  | { type: 'REGISTER_SCAN_RESULT'; scope: string; candidates: MediaCandidate[] }
+  | { type: 'GET_SCAN_COLLECTION'; scope: string }
+  | { type: 'CLEAR_SCAN_COLLECTION'; scope: string }
   | { type: 'START_DOWNLOADS'; candidateIds: string[] }
   | { type: 'GET_DOWNLOAD_STATUS' }
   | { type: 'START_ZIP_EXPORT'; candidateIds: string[] }
@@ -162,6 +164,8 @@ type ExtensionMessage =
 - popup から渡された URL やファイル名を service worker が無条件に信用しない
 - 候補 ID から、直前のスキャンで検証済みの候補を引き直す
 - 予期しない送信元、メッセージ型、過大な配列を拒否する
+- 正規化したDiscordチャンネルURLを収集スコープとし、同一スコープの候補だけを最大500件まで`chrome.storage.session`へ累積する
+- ポップアップ再表示時は現在のチャンネルと一致する収集結果だけを復元し、別チャンネルへ移動後のスキャンでは以前の候補を引き継がない
 
 ## 9. エラー処理
 

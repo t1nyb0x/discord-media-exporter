@@ -22,6 +22,7 @@ describe('extractVisibleDiscordMedia', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.candidates).toHaveLength(4);
+    expect(result.scope).toBe('https://discord.com/channels/100/200');
     expect(result.candidates.map((candidate) => candidate.kind)).toEqual([
       'image',
       'video',

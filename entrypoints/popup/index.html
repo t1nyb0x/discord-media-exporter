@@ -16,7 +16,7 @@
       </header>
 
       <p class="description">
-        現在のメッセージ表示領域に見えている添付だけを確認します。画面外へ自動移動しません。
+        現在見えている添付を収集します。Discordをスクロールして繰り返すと、同じチャンネルの結果へ追加できます。画面外へ自動移動しません。
       </p>
 
       <button id="scan-button" class="button button-primary" type="button">
@@ -36,6 +36,9 @@
             表示中を選択
           </button>
           <button id="clear-button" class="button button-quiet" type="button">解除</button>
+          <button id="clear-collection-button" class="button button-quiet" type="button">
+            収集をクリア
+          </button>
         </div>
 
         <ul id="candidate-list" class="candidate-list" aria-label="メディア候補"></ul>

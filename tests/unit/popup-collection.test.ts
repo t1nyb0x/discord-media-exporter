@@ -1,0 +1,127 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import popupFixture from '../../entrypoints/popup/index.html?raw';
+import { stableCandidateId } from '../../src/domain/id';
+import type { MediaCandidate } from '../../src/domain/media';
+
+const scope = 'https://discord.com/channels/100/200';
+const firstCandidate = createCandidate(1);
+const secondCandidate = createCandidate(2);
+
+const browserMocks = vi.hoisted(() => ({
+  sendMessage: vi.fn(),
+  queryTabs: vi.fn(),
+  executeScript: vi.fn(),
+}));
+
+vi.mock('wxt/browser', () => ({
+  browser: {
+    runtime: { sendMessage: browserMocks.sendMessage },
+    tabs: { query: browserMocks.queryTabs },
+    scripting: { executeScript: browserMocks.executeScript },
+    permissions: { request: vi.fn(), remove: vi.fn() },
+  },
+}));
+
+describe('popup scan collection', () => {
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    vi.resetModules();
+  });
+
+  it('restores a session collection and adds candidates found after scrolling', async () => {
+    vi.useFakeTimers();
+    browserMocks.queryTabs.mockResolvedValue([{ id: 1, url: scope }]);
+    browserMocks.executeScript.mockResolvedValue([
+      { result: { ok: true, scope, candidates: [secondCandidate] } },
+    ]);
+    browserMocks.sendMessage.mockImplementation(async (request: { type: string }) => {
+      switch (request.type) {
+        case 'GET_SCAN_COLLECTION':
+          return {
+            ok: true,
+            type: 'SCAN_COLLECTION',
+            collection: { scope, candidates: [firstCandidate] },
+          };
+        case 'REGISTER_SCAN_RESULT':
+          return {
+            ok: true,
+            type: 'SCAN_REGISTERED',
+            collection: { scope, candidates: [firstCandidate, secondCandidate] },
+          };
+        case 'CLEAR_SCAN_COLLECTION':
+          return {
+            ok: true,
+            type: 'SCAN_COLLECTION_CLEARED',
+            collection: { scope: null, candidates: [] },
+          };
+        case 'GET_DOWNLOAD_STATUS':
+          return { ok: true, type: 'DOWNLOAD_STATUS', state: { items: [] } };
+        case 'GET_EXPORT_STATUS':
+          return {
+            ok: true,
+            type: 'ZIP_EXPORT_STATUS',
+            state: {
+              status: 'idle',
+              totalItems: 0,
+              completedItems: 0,
+              processedBytes: 0,
+            },
+          };
+        default:
+          return { ok: false, error: 'unexpected' };
+      }
+    });
+
+    loadPopupFixture();
+    await import('../../entrypoints/popup/main');
+    await flushPromises();
+
+    expect(document.querySelectorAll('#candidate-list li')).toHaveLength(1);
+    expect(document.getElementById('notice')?.textContent).toContain('1件の収集結果を復元');
+
+    document.getElementById('scan-button')?.click();
+    await flushPromises();
+
+    expect(browserMocks.sendMessage).toHaveBeenCalledWith({
+      type: 'REGISTER_SCAN_RESULT',
+      scope,
+      candidates: [secondCandidate],
+    });
+    expect(document.querySelectorAll('#candidate-list li')).toHaveLength(2);
+    expect(document.getElementById('candidate-count')?.textContent).toBe('2件');
+    expect(document.getElementById('notice')?.textContent).toContain('1件を追加');
+
+    document.getElementById('clear-collection-button')?.click();
+    await flushPromises();
+
+    expect(browserMocks.sendMessage).toHaveBeenCalledWith({ type: 'CLEAR_SCAN_COLLECTION', scope });
+    expect(document.getElementById('results')?.hidden).toBe(true);
+    expect(document.getElementById('candidate-count')?.textContent).toBe('0件');
+  });
+});
+
+function createCandidate(index: number): MediaCandidate {
+  const pathname = `/attachments/111/${200 + index}/file-${index}.png`;
+  return {
+    id: stableCandidateId(pathname),
+    sourceUrl: `https://cdn.discordapp.com${pathname}`,
+    kind: 'image',
+    displayName: `file-${index}.png`,
+    suggestedFilename: `file-${index}.png`,
+    source: 'image',
+  };
+}
+
+async function flushPromises(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+function loadPopupFixture(): void {
+  document.open();
+  document.write(popupFixture);
+  document.close();
+}

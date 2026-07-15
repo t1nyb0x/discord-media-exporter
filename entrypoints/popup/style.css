@@ -149,6 +149,7 @@ h2 {
 
 .toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 7px;
   margin-bottom: 10px;

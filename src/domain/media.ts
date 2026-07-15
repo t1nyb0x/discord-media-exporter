@@ -18,7 +18,13 @@ export type ScanErrorCode =
   | 'SCAN_FAILED';
 
 export type ScanResult =
-  { ok: true; candidates: MediaCandidate[] } | { ok: false; code: ScanErrorCode; message: string };
+  | { ok: true; scope: string; candidates: MediaCandidate[] }
+  | { ok: false; code: ScanErrorCode; message: string };
+
+export interface CandidateCollection {
+  scope: string | null;
+  candidates: MediaCandidate[];
+}
 
 export type DownloadStatus = 'queued' | 'in_progress' | 'complete' | 'failed';
 

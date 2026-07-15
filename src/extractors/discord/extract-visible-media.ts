@@ -3,8 +3,8 @@ import { stableCandidateId } from '../../domain/id';
 import type { CandidateSource, MediaCandidate, MediaKind, ScanResult } from '../../domain/media';
 import {
   attachmentIdentity,
+  discordChannelScope,
   inferMediaKind,
-  isDiscordChannelUrl,
   normalizeDiscordAttachmentUrl,
 } from '../../domain/url';
 import { intersectRects, isElementVisibleInRect, type RectLike } from './visibility';
@@ -16,7 +16,8 @@ export function extractVisibleDiscordMedia(
   documentObject: Document,
   windowObject: Window,
 ): ScanResult {
-  if (!isDiscordChannelUrl(windowObject.location.href)) {
+  const scope = discordChannelScope(windowObject.location.href);
+  if (scope === null) {
     return {
       ok: false,
       code: 'NOT_DISCORD_CHANNEL',
@@ -44,7 +45,7 @@ export function extractVisibleDiscordMedia(
 
   try {
     const candidates = collectCandidates(messageViewport, visibleViewport, windowObject);
-    return { ok: true, candidates };
+    return { ok: true, scope, candidates };
   } catch {
     return {
       ok: false,
