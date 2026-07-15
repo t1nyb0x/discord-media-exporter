@@ -14,6 +14,7 @@ describe('extractVisibleDiscordMedia', () => {
     setRect(requireElement('visible-file'), rect(20, 410, 300, 40));
     setRect(requireElement('duplicate-image'), rect(20, 470, 300, 40));
     setRect(requireElement('offscreen-image'), rect(20, 900, 300, 40));
+    setRect(requireElement('hidden-image'), rect(20, 540, 300, 40));
     setRect(requireElement('external-link'), rect(20, 520, 300, 40));
 
     const result = extractVisibleDiscordMedia(document, window);
@@ -52,6 +53,25 @@ describe('extractVisibleDiscordMedia', () => {
     expect(extractVisibleDiscordMedia(document, window)).toMatchObject({
       ok: false,
       code: 'MESSAGE_VIEWPORT_NOT_FOUND',
+    });
+  });
+
+  it('supports the semantic role=log fallback without broadening the scan scope', () => {
+    document.open();
+    document.write(
+      '<main><section role="log" id="message-log"><a id="fallback-file" href="https://cdn.discordapp.com/attachments/111/300/fallback.pdf">fallback.pdf</a></section></main>',
+    );
+    document.close();
+    window.location.href = 'https://discord.com/channels/100/200';
+    setWindowSize(1024, 768);
+    setRect(requireElement('message-log'), rect(0, 0, 900, 700));
+    setRect(requireElement('fallback-file'), rect(20, 20, 200, 30));
+
+    const result = extractVisibleDiscordMedia(document, window);
+
+    expect(result).toMatchObject({
+      ok: true,
+      candidates: [{ suggestedFilename: 'fallback.pdf', kind: 'file' }],
     });
   });
 
