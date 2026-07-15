@@ -42,10 +42,28 @@
 
         <div class="download-panel">
           <p id="selection-summary">0件を選択中</p>
-          <button id="download-button" class="button button-primary" type="button" disabled>
-            選択したメディアを保存
-          </button>
+          <div class="save-actions">
+            <button id="download-button" class="button button-primary" type="button" disabled>
+              個別に保存
+            </button>
+            <button id="zip-button" class="button button-secondary" type="button" disabled>
+              ZIPにまとめて保存
+            </button>
+          </div>
+          <p class="zip-permission-note">
+            ZIP保存時だけ、Discord CDNから内容を取得する追加権限を確認します。最大100件・合計100
+            MiBです。
+          </p>
         </div>
+      </section>
+
+      <section id="zip-progress" class="progress" aria-live="polite" hidden>
+        <h2>ZIP出力状況</h2>
+        <p id="zip-progress-summary"></p>
+        <p id="zip-progress-detail" class="zip-progress-detail"></p>
+        <button id="zip-cancel-button" class="button button-danger" type="button" hidden>
+          ZIP出力をキャンセル
+        </button>
       </section>
 
       <section id="progress" class="progress" aria-live="polite" hidden>

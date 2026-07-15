@@ -116,6 +116,25 @@ h2 {
   background: #4752c4;
 }
 
+.button-secondary {
+  width: 100%;
+  padding: 8px 14px;
+  color: #fff;
+  background: #248046;
+}
+
+.button-secondary:hover:not(:disabled) {
+  background: #1a6334;
+}
+
+.button-danger {
+  width: 100%;
+  margin-top: 9px;
+  padding: 7px 12px;
+  color: #fff;
+  background: #da373c;
+}
+
 .button-quiet {
   min-height: 30px;
   padding: 5px 8px;
@@ -233,6 +252,17 @@ select {
   font-size: 12px;
 }
 
+.save-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.download-panel .zip-permission-note {
+  margin-top: 8px;
+  line-height: 1.45;
+}
+
 .progress {
   margin-top: 14px;
   padding: 10px;
@@ -244,6 +274,14 @@ select {
   margin: 0;
   color: #b5bac1;
   font-size: 12px;
+}
+
+.progress .zip-progress-detail {
+  margin-top: 5px;
+  overflow: hidden;
+  color: #dbdee1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .progress-list {

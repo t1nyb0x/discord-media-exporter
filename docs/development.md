@@ -54,6 +54,12 @@
 10. [x] hardening 版の手動回帰テスト
 11. [x] unpacked 配布前の最終レビュー
 12. [ ] Dependabot または代替手段による依存関係監査
+13. [x] Phase 5 メディア ZIP の要件・技術設計・Proposed ADR
+14. [x] WXT offscreenと`fflate` streaming ZIP writerの技術spike
+15. [x] ZIPドメイン、任意権限、UI、キャンセル、状態復元の実装
+16. [x] ZIP内容、上限、redirect、権限、状態遷移の自動テスト
+17. [ ] Chrome Stableでの25 / 50 / 100 MiB計測と実Discord手動確認
+18. [ ] ADR-0003の承認と`0.3.0`限定配布判定
 
 ## 5. ローカル確認手順
 
@@ -127,10 +133,11 @@ Phase 2 の詳細な自動検証結果と残作業は[検証記録](reviews/phas
 - キーボードだけで主要操作ができる
 - Chrome で手動確認されている
 - 関連ドキュメントと変更履歴が更新されている
+- ZIP の変更では[メディア ZIP 出力仕様](zip-export.md)の上限、原子性、権限、性能計測を満たしている
 
 ## 9. リリース前チェック
 
-- バージョンを SemVer で更新
+- `package.json` のバージョンを未公開の SemVer へ更新
 - clean install から全検査を実行
 - 生成 manifest と権限をレビュー
 - source map、fixture、開発設定が unpacked 配布物に混入していないことを確認
@@ -141,3 +148,5 @@ Phase 2 の詳細な自動検証結果と残作業は[検証記録](reviews/phas
 - インストール、更新、無効化、削除の手順を同梱
 - テスト用と本番用の設定・アイコンを取り違えていないことを確認
 - ロールバック可能な直前リリース成果物を保持
+
+`main`へ反映されると[Release workflow](../.github/workflows/release.yml)が`pnpm release:prepare`を再実行し、`v<version>` GitHub Releaseを作成して配布 ZIPとSHA-256を添付します。同名のReleaseまたはタグは上書きしません。workflowの成功と添付ファイルを確認するまで利用者へ案内しないでください。

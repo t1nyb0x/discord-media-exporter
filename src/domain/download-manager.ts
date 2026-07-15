@@ -66,6 +66,25 @@ export class DownloadManager {
     return this.cloneBatchState();
   }
 
+  async getRegisteredCandidates(candidateIds: string[]): Promise<MediaCandidate[]> {
+    await this.ensureInitialized();
+    const uniqueIds = [...new Set(candidateIds)];
+    if (uniqueIds.length === 0) throw new Error('保存するメディアを選択してください。');
+
+    return uniqueIds.map((candidateId) => {
+      const candidate = this.candidateRegistry.get(candidateId);
+      if (candidate === undefined || !isValidMediaCandidate(candidate)) {
+        throw new Error('メディア候補の有効期限が切れました。再スキャンしてください。');
+      }
+      return { ...candidate };
+    });
+  }
+
+  async hasActiveDownloads(): Promise<boolean> {
+    await this.ensureInitialized();
+    return this.hasActiveBatch();
+  }
+
   async getDownloadState(): Promise<DownloadBatchState> {
     await this.ensureInitialized();
     await this.pumpQueue();

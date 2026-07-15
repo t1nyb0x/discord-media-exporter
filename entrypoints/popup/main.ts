@@ -5,18 +5,23 @@ import type {
   MediaCandidate,
   MediaKind,
   ScanResult,
+  ZipExportState,
 } from '../../src/domain/media';
+import { MAX_ZIP_ITEMS } from '../../src/domain/zip-export';
 import { isValidMediaCandidate } from '../../src/domain/validation';
 import { isRecord, type ExtensionRequest, type ExtensionResponse } from '../../src/shared/messages';
+import { ZIP_HOST_ORIGINS } from '../../src/shared/permissions';
 
 const state: {
   candidates: MediaCandidate[];
   selectedIds: Set<string>;
   filter: MediaKind | 'all';
+  zipActive: boolean;
 } = {
   candidates: [],
   selectedIds: new Set(),
   filter: 'all',
+  zipActive: false,
 };
 
 const scanButton = requireElement<HTMLButtonElement>('scan-button');
@@ -27,11 +32,16 @@ const kindFilter = requireElement<HTMLSelectElement>('kind-filter');
 const selectAllButton = requireElement<HTMLButtonElement>('select-all-button');
 const clearButton = requireElement<HTMLButtonElement>('clear-button');
 const downloadButton = requireElement<HTMLButtonElement>('download-button');
+const zipButton = requireElement<HTMLButtonElement>('zip-button');
 const selectionSummary = requireElement<HTMLElement>('selection-summary');
 const notice = requireElement<HTMLElement>('notice');
 const progress = requireElement<HTMLElement>('progress');
 const progressSummary = requireElement<HTMLElement>('progress-summary');
 const progressList = requireElement<HTMLUListElement>('progress-list');
+const zipProgress = requireElement<HTMLElement>('zip-progress');
+const zipProgressSummary = requireElement<HTMLElement>('zip-progress-summary');
+const zipProgressDetail = requireElement<HTMLElement>('zip-progress-detail');
+const zipCancelButton = requireElement<HTMLButtonElement>('zip-cancel-button');
 
 scanButton.addEventListener('click', () => void scanVisibleMedia());
 kindFilter.addEventListener('change', () => {
@@ -47,9 +57,15 @@ clearButton.addEventListener('click', () => {
   renderCandidates();
 });
 downloadButton.addEventListener('click', () => void startSelectedDownloads());
+zipButton.addEventListener('click', () => void startSelectedZipExport());
+zipCancelButton.addEventListener('click', () => void cancelZipExport());
 
 void refreshDownloadStatus();
-const statusTimer = window.setInterval(() => void refreshDownloadStatus(), 1_000);
+void refreshZipExportStatus();
+const statusTimer = window.setInterval(() => {
+  void refreshDownloadStatus();
+  void refreshZipExportStatus();
+}, 1_000);
 window.addEventListener('unload', () => window.clearInterval(statusTimer));
 
 async function scanVisibleMedia(): Promise<void> {
@@ -117,8 +133,56 @@ async function startSelectedDownloads(): Promise<void> {
       true,
     );
   } finally {
-    setBusy(downloadButton, false, '選択したメディアを保存');
+    setBusy(downloadButton, false, '個別に保存');
     updateSelectionSummary();
+  }
+}
+
+async function startSelectedZipExport(): Promise<void> {
+  if (state.selectedIds.size === 0 || state.selectedIds.size > MAX_ZIP_ITEMS) return;
+  setBusy(zipButton, true, '権限を確認中…');
+  setNotice('');
+
+  let permissionGranted = false;
+  try {
+    permissionGranted = await browser.permissions.request({ origins: [...ZIP_HOST_ORIGINS] });
+    if (!permissionGranted) {
+      throw new Error('ZIP保存に必要なDiscord CDNへのアクセスが許可されませんでした。');
+    }
+
+    setBusy(zipButton, true, '開始中…');
+    const response = await sendRequest({
+      type: 'START_ZIP_EXPORT',
+      candidateIds: [...state.selectedIds],
+    });
+    if (!response.ok) throw new Error(response.error);
+    if (response.type !== 'ZIP_EXPORT_STARTED') throw new Error('予期しない応答です。');
+    renderZipProgress(response.state);
+  } catch (error) {
+    if (permissionGranted) {
+      await browser.permissions.remove({ origins: [...ZIP_HOST_ORIGINS] }).catch(() => false);
+    }
+    setNotice(error instanceof Error ? error.message : 'ZIP出力を開始できませんでした。', true);
+  } finally {
+    setBusy(zipButton, false, 'ZIPにまとめて保存');
+    updateSelectionSummary();
+  }
+}
+
+async function cancelZipExport(): Promise<void> {
+  setBusy(zipCancelButton, true, 'キャンセル中…');
+  try {
+    const response = await sendRequest({ type: 'CANCEL_ZIP_EXPORT' });
+    if (!response.ok) throw new Error(response.error);
+    if (response.type !== 'ZIP_EXPORT_CANCELLED') throw new Error('予期しない応答です。');
+    renderZipProgress(response.state);
+  } catch (error) {
+    setNotice(
+      error instanceof Error ? error.message : 'ZIP出力をキャンセルできませんでした。',
+      true,
+    );
+  } finally {
+    setBusy(zipCancelButton, false, 'ZIP出力をキャンセル');
   }
 }
 
@@ -129,6 +193,16 @@ async function refreshDownloadStatus(): Promise<void> {
     if (response.state.items.length === 0) return;
     progress.hidden = false;
     renderProgress(response.state);
+  } catch {
+    // The popup may be closing or the service worker may be restarting.
+  }
+}
+
+async function refreshZipExportStatus(): Promise<void> {
+  try {
+    const response = await sendRequest({ type: 'GET_EXPORT_STATUS' });
+    if (!response.ok || response.type !== 'ZIP_EXPORT_STATUS') return;
+    renderZipProgress(response.state);
   } catch {
     // The popup may be closing or the service worker may be restarting.
   }
@@ -179,8 +253,13 @@ function renderCandidates(): void {
 }
 
 function updateSelectionSummary(): void {
-  selectionSummary.textContent = `${state.selectedIds.size}件を選択中`;
-  downloadButton.disabled = state.selectedIds.size === 0;
+  const count = state.selectedIds.size;
+  selectionSummary.textContent =
+    count > MAX_ZIP_ITEMS
+      ? `${count}件を選択中（ZIPは${MAX_ZIP_ITEMS}件まで）`
+      : `${count}件を選択中`;
+  downloadButton.disabled = count === 0 || state.zipActive;
+  zipButton.disabled = count === 0 || count > MAX_ZIP_ITEMS || state.zipActive;
 }
 
 function renderProgress(downloadState: DownloadBatchState): void {
@@ -219,6 +298,28 @@ function renderProgress(downloadState: DownloadBatchState): void {
     item.append(status, details);
     progressList.append(item);
   }
+}
+
+function renderZipProgress(zipState: ZipExportState): void {
+  if (zipState.status === 'idle') {
+    zipProgress.hidden = true;
+    state.zipActive = false;
+    updateSelectionSummary();
+    return;
+  }
+
+  const active = ['fetching', 'packing', 'saving'].includes(zipState.status);
+  state.zipActive = active;
+  zipProgress.hidden = false;
+  zipCancelButton.hidden = !active;
+  zipProgressSummary.textContent = [
+    zipStatusLabel(zipState.status),
+    `${zipState.completedItems}/${zipState.totalItems}件`,
+    formatBytes(zipState.processedBytes),
+  ].join(' / ');
+  zipProgressDetail.textContent =
+    zipState.error ?? zipState.currentFilename ?? zipState.archiveFilename ?? '';
+  updateSelectionSummary();
 }
 
 function filteredCandidates(): MediaCandidate[] {
@@ -273,6 +374,31 @@ function downloadStatusLabel(status: DownloadBatchState['items'][number]['status
     case 'failed':
       return '失敗';
   }
+}
+
+function zipStatusLabel(status: ZipExportState['status']): string {
+  switch (status) {
+    case 'idle':
+      return '未実行';
+    case 'fetching':
+      return '取得中';
+    case 'packing':
+      return 'ZIP作成中';
+    case 'saving':
+      return '保存中';
+    case 'complete':
+      return '完了';
+    case 'failed':
+      return '失敗';
+    case 'cancelled':
+      return 'キャンセル済み';
+  }
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
 }
 
 function setNotice(message: string, isError = false): void {

@@ -1,14 +1,20 @@
-import type { DownloadBatchState, MediaCandidate } from '../domain/media';
+import type { DownloadBatchState, MediaCandidate, ZipExportState } from '../domain/media';
 
 export type ExtensionRequest =
   | { type: 'REGISTER_SCAN_RESULT'; candidates: MediaCandidate[] }
   | { type: 'START_DOWNLOADS'; candidateIds: string[] }
-  | { type: 'GET_DOWNLOAD_STATUS' };
+  | { type: 'GET_DOWNLOAD_STATUS' }
+  | { type: 'START_ZIP_EXPORT'; candidateIds: string[] }
+  | { type: 'CANCEL_ZIP_EXPORT' }
+  | { type: 'GET_EXPORT_STATUS' };
 
 export type ExtensionResponse =
   | { ok: true; type: 'SCAN_REGISTERED'; count: number }
   | { ok: true; type: 'DOWNLOADS_STARTED'; state: DownloadBatchState }
   | { ok: true; type: 'DOWNLOAD_STATUS'; state: DownloadBatchState }
+  | { ok: true; type: 'ZIP_EXPORT_STARTED'; state: ZipExportState }
+  | { ok: true; type: 'ZIP_EXPORT_CANCELLED'; state: ZipExportState }
+  | { ok: true; type: 'ZIP_EXPORT_STATUS'; state: ZipExportState }
   | { ok: false; error: string };
 
 export function isExtensionRequest(value: unknown): value is ExtensionRequest {
@@ -18,12 +24,15 @@ export function isExtensionRequest(value: unknown): value is ExtensionRequest {
     case 'REGISTER_SCAN_RESULT':
       return Array.isArray(value.candidates) && value.candidates.length <= 500;
     case 'START_DOWNLOADS':
+    case 'START_ZIP_EXPORT':
       return (
         Array.isArray(value.candidateIds) &&
         value.candidateIds.length <= 500 &&
         value.candidateIds.every((id) => typeof id === 'string')
       );
     case 'GET_DOWNLOAD_STATUS':
+    case 'GET_EXPORT_STATUS':
+    case 'CANCEL_ZIP_EXPORT':
       return true;
     default:
       return false;
