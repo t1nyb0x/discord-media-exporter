@@ -1,7 +1,7 @@
 # Phase 5 自動検証記録
 
-- 実施日: 2026-07-15
-- 対象バージョン: `0.3.0`
+- 実施日: 2026-07-16
+- 対象バージョン: `0.4.0`
 - 状態: Automated verification passed / Manual verification pending
 
 ## 実装済み
@@ -27,7 +27,7 @@
 - `pnpm format:check`: Pass
 - `pnpm zip`: Pass
 - 配布物manifest・不要ファイル・権限監査: Pass
-- `0.3.0`配布ZIP生成: Pass
+- `0.4.0`配布ZIP生成: Pass
 - SHA-256生成: Pass
 
 自動テストでは、ZIPの展開と内容一致、CRC検証、逐次fetch、Cookieなし、redirect拒否、宣言値と実読込値の容量上限、キャンセル、同名ファイル、offscreen lifecycle、Chrome download状態、任意権限解放、scroll後の自動候補追加、停止、チャンネル変更時の自動停止、別チャンネル分離、popup再表示時の復元と明示クリアを確認しました。

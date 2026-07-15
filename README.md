@@ -8,7 +8,7 @@
 ## 現在の状態
 
 - フェーズ: Phase 5 / Media ZIP export verification
-- 実装: `0.3.0` のZIP出力と自動検証が完了。Chrome実機確認は未完了
+- 実装: `0.4.0` の自動収集・ZIP出力と自動検証が完了。Chrome実機確認は未完了
 - 対象: Google Chrome、Manifest V3
 - 最初の対象画面: `https://discord.com/channels/*`
 - 目的: 表示中メディアの保存支援
@@ -87,6 +87,7 @@ pnpm build
 - [開発ガイド](docs/development.md)
 - [インストール・更新ガイド](docs/installation.md)
 - [0.2.0 リリースノート](docs/release-notes-0.2.0.md)
+- [0.4.0 リリースノート](docs/release-notes-0.4.0.md)
 - [0.3.0 リリースノート](docs/release-notes-0.3.0.md)
 - [限定配布テストチェックリスト](docs/testing/limited-beta-checklist.md)
 - [Phase 5 メディアZIP手動テスト](docs/testing/zip-export-checklist.md)

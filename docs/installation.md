@@ -37,24 +37,24 @@
 
 ## SHA-256 の確認例
 
-配布ファイル名を `discord-media-exporter-0.3.0-chrome.zip` とした例です。
+配布ファイル名を `discord-media-exporter-0.4.0-chrome.zip` とした例です。
 
 ### Windows PowerShell
 
 ```powershell
-Get-FileHash .\discord-media-exporter-0.3.0-chrome.zip -Algorithm SHA256
+Get-FileHash .\discord-media-exporter-0.4.0-chrome.zip -Algorithm SHA256
 ```
 
 ### macOS
 
 ```bash
-shasum -a 256 discord-media-exporter-0.3.0-chrome.zip
+shasum -a 256 discord-media-exporter-0.4.0-chrome.zip
 ```
 
 ### Linux
 
 ```bash
-sha256sum discord-media-exporter-0.3.0-chrome.zip
+sha256sum discord-media-exporter-0.4.0-chrome.zip
 ```
 
 ハッシュが一致しない場合は、展開もインストールもせず配布元へ連絡してください。
@@ -67,8 +67,8 @@ pnpm release:prepare
 
 生成物:
 
-- `.output/discord-media-exporter-0.3.0-chrome.zip`
-- `.output/discord-media-exporter-0.3.0-chrome.zip.sha256`
+- `.output/discord-media-exporter-0.4.0-chrome.zip`
+- `.output/discord-media-exporter-0.4.0-chrome.zip.sha256`
 
 `main`へ反映された版はGitHub Actionsでも同じ検証と生成を行い、`v<version>` GitHub Releaseへこの2ファイルを添付します。利用者へ渡す前に、Releaseのタグとファイル名が対象バージョンに一致し、workflowが成功していることを確認します。
 
