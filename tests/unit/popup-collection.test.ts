@@ -9,6 +9,7 @@ const secondCandidate = createCandidate(2);
 
 const browserMocks = vi.hoisted(() => ({
   sendMessage: vi.fn(),
+  sendTabMessage: vi.fn(),
   queryTabs: vi.fn(),
   executeScript: vi.fn(),
 }));
@@ -16,7 +17,7 @@ const browserMocks = vi.hoisted(() => ({
 vi.mock('wxt/browser', () => ({
   browser: {
     runtime: { sendMessage: browserMocks.sendMessage },
-    tabs: { query: browserMocks.queryTabs },
+    tabs: { query: browserMocks.queryTabs, sendMessage: browserMocks.sendTabMessage },
     scripting: { executeScript: browserMocks.executeScript },
     permissions: { request: vi.fn(), remove: vi.fn() },
   },
@@ -29,12 +30,13 @@ describe('popup scan collection', () => {
     vi.resetModules();
   });
 
-  it('restores a session collection and adds candidates found after scrolling', async () => {
+  it('restores a session collection, starts automatic collection, and allows it to stop', async () => {
     vi.useFakeTimers();
     browserMocks.queryTabs.mockResolvedValue([{ id: 1, url: scope }]);
     browserMocks.executeScript.mockResolvedValue([
       { result: { ok: true, scope, candidates: [secondCandidate] } },
     ]);
+    browserMocks.sendTabMessage.mockResolvedValue({ active: false });
     browserMocks.sendMessage.mockImplementation(async (request: { type: string }) => {
       switch (request.type) {
         case 'GET_SCAN_COLLECTION':
@@ -92,6 +94,14 @@ describe('popup scan collection', () => {
     expect(document.getElementById('candidate-count')?.textContent).toBe('2件');
     expect(document.getElementById('notice')?.textContent).toContain('1件を追加');
 
+    document.getElementById('scan-button')?.click();
+    await flushPromises();
+
+    expect(browserMocks.sendTabMessage).toHaveBeenCalledWith(1, {
+      type: 'STOP_MEDIA_COLLECTOR',
+    });
+    expect(document.getElementById('scan-button')?.textContent).toBe('自動収集を開始');
+
     document.getElementById('clear-collection-button')?.click();
     await flushPromises();
 
@@ -114,10 +124,7 @@ function createCandidate(index: number): MediaCandidate {
 }
 
 async function flushPromises(): Promise<void> {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let index = 0; index < 12; index += 1) await Promise.resolve();
 }
 
 function loadPopupFixture(): void {

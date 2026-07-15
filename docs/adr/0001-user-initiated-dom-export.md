@@ -4,6 +4,9 @@
 - Date: 2026-07-15
 - Decision owners: Project owner
 
+> [!NOTE]
+> 「監視を行わない」という判断は、[ADR-0004](0004-observe-visible-media-after-user-start.md)により、ユーザーが開始した同一チャンネルの可視範囲監視に限って更新されています。自動スクロール、巡回、内部API利用は引き続き禁止します。
+
 ## Context
 
 ブラウザで閲覧中の Discord チャンネルからメディアを保存する方法として、次の案があります。

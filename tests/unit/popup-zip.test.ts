@@ -15,6 +15,7 @@ const candidate = {
 
 const browserMocks = vi.hoisted(() => ({
   sendMessage: vi.fn(),
+  sendTabMessage: vi.fn(),
   queryTabs: vi.fn(),
   executeScript: vi.fn(),
   requestPermission: vi.fn(),
@@ -24,7 +25,7 @@ const browserMocks = vi.hoisted(() => ({
 vi.mock('wxt/browser', () => ({
   browser: {
     runtime: { sendMessage: browserMocks.sendMessage },
-    tabs: { query: browserMocks.queryTabs },
+    tabs: { query: browserMocks.queryTabs, sendMessage: browserMocks.sendTabMessage },
     scripting: { executeScript: browserMocks.executeScript },
     permissions: {
       request: browserMocks.requestPermission,
@@ -46,6 +47,7 @@ describe('popup ZIP export', () => {
     browserMocks.executeScript.mockResolvedValue([
       { result: { ok: true, scope: channelScope, candidates: [candidate] } },
     ]);
+    browserMocks.sendTabMessage.mockResolvedValue({ active: false });
     browserMocks.requestPermission.mockResolvedValue(true);
     browserMocks.removePermission.mockResolvedValue(true);
     browserMocks.sendMessage.mockImplementation(async (request: { type: string }) => {
@@ -120,10 +122,7 @@ describe('popup ZIP export', () => {
 });
 
 async function flushPromises(): Promise<void> {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let index = 0; index < 12; index += 1) await Promise.resolve();
 }
 
 function loadPopupFixture(): void {

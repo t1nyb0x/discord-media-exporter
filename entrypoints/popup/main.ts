@@ -20,11 +20,13 @@ const state: {
   selectedIds: Set<string>;
   filter: MediaKind | 'all';
   zipActive: boolean;
+  collectorActive: boolean;
 } = {
   candidates: [],
   selectedIds: new Set(),
   filter: 'all',
   zipActive: false,
+  collectorActive: false,
 };
 
 const scanButton = requireElement<HTMLButtonElement>('scan-button');
@@ -47,7 +49,7 @@ const zipProgressSummary = requireElement<HTMLElement>('zip-progress-summary');
 const zipProgressDetail = requireElement<HTMLElement>('zip-progress-detail');
 const zipCancelButton = requireElement<HTMLButtonElement>('zip-cancel-button');
 
-scanButton.addEventListener('click', () => void scanVisibleMedia());
+scanButton.addEventListener('click', () => void toggleMediaCollector());
 kindFilter.addEventListener('change', () => {
   state.filter = isMediaFilter(kindFilter.value) ? kindFilter.value : 'all';
   renderCandidates();
@@ -67,6 +69,8 @@ zipCancelButton.addEventListener('click', () => void cancelZipExport());
 
 const scanCollectionRestoration = restoreScanCollection();
 void scanCollectionRestoration;
+const collectorStatusRestoration = restoreCollectorStatus();
+void collectorStatusRestoration;
 void refreshDownloadStatus();
 void refreshZipExportStatus();
 const statusTimer = window.setInterval(() => {
@@ -75,14 +79,22 @@ const statusTimer = window.setInterval(() => {
 }, 1_000);
 window.addEventListener('unload', () => window.clearInterval(statusTimer));
 
-async function scanVisibleMedia(): Promise<void> {
-  setBusy(scanButton, true, '確認中…');
+async function toggleMediaCollector(): Promise<void> {
+  await collectorStatusRestoration;
+  if (state.collectorActive) await stopMediaCollector();
+  else await startMediaCollector();
+}
+
+async function startMediaCollector(): Promise<void> {
+  setBusy(scanButton, true, '開始中…');
   setNotice('');
+  let targetTabId: number | undefined;
 
   try {
     await scanCollectionRestoration;
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
     if (tab?.id === undefined) throw new Error('対象タブを確認できませんでした。');
+    targetTabId = tab.id;
 
     const injectionResults = await browser.scripting.executeScript({
       target: { tabId: tab.id },
@@ -105,23 +117,64 @@ async function scanVisibleMedia(): Promise<void> {
       (candidate) => !previousIds.has(candidate.id),
     ).length;
     applyCollection(response.collection);
+    state.collectorActive = true;
     results.hidden = false;
     setNotice(
       state.candidates.length >= MAX_COLLECTED_CANDIDATES && addedCount === 0
-        ? `収集上限の${MAX_COLLECTED_CANDIDATES}件に達しています。不要な候補を保存後、収集結果をクリアしてください。`
+        ? `自動収集を開始しました。収集上限の${MAX_COLLECTED_CANDIDATES}件に達しています。`
         : scanResult.candidates.length === 0
-          ? `この表示範囲に新しい添付はありません（収集中 ${state.candidates.length}件）。`
-          : `${addedCount}件を追加しました（収集中 ${state.candidates.length}件）。`,
+          ? `自動収集を開始しました。現在の表示範囲に添付はありません（収集中 ${state.candidates.length}件）。`
+          : `${addedCount}件を追加し、自動収集を開始しました（収集中 ${state.candidates.length}件）。`,
     );
   } catch (error) {
+    if (targetTabId !== undefined) {
+      await browser.tabs
+        .sendMessage(targetTabId, { type: 'STOP_MEDIA_COLLECTOR' })
+        .catch(() => null);
+    }
+    state.collectorActive = false;
     results.hidden = state.candidates.length === 0;
     setNotice(
       error instanceof Error ? error.message : '表示中メディアの確認に失敗しました。',
       true,
     );
   } finally {
-    setBusy(scanButton, false, 'この表示範囲を確認');
+    setBusy(scanButton, false, collectorButtonLabel());
   }
+}
+
+async function stopMediaCollector(): Promise<void> {
+  setBusy(scanButton, true, '停止中…');
+  try {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id !== undefined) {
+      await browser.tabs.sendMessage(tab.id, { type: 'STOP_MEDIA_COLLECTOR' }).catch(() => null);
+    }
+    state.collectorActive = false;
+    setNotice(`自動収集を停止しました（収集中 ${state.candidates.length}件）。`);
+  } finally {
+    setBusy(scanButton, false, collectorButtonLabel());
+  }
+}
+
+async function restoreCollectorStatus(): Promise<void> {
+  try {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id === undefined) return;
+    const response: unknown = await browser.tabs.sendMessage(tab.id, {
+      type: 'GET_MEDIA_COLLECTOR_STATUS',
+    });
+    state.collectorActive =
+      isRecord(response) && response.active === true && (await getActiveChannelScope()) !== null;
+  } catch {
+    state.collectorActive = false;
+  } finally {
+    scanButton.textContent = collectorButtonLabel();
+  }
+}
+
+function collectorButtonLabel(): string {
+  return state.collectorActive ? '自動収集を停止' : '自動収集を開始';
 }
 
 async function restoreScanCollection(): Promise<void> {
