@@ -17,6 +17,10 @@
 - 停止後はページ内ガイドを削除せず、再開可能なinactive状態へ戻す
 - 常時表示をOFFにすると動的content scriptを登録解除し、Discordサイト権限を解放する
 
+### Fixed
+
+- 常時表示をOFFからONへ戻した際、既に開いているDiscordチャンネルにもリロードなしでlauncherを再表示
+
 ### Security
 
 - 常時表示は明示的なON操作から`https://discord.com/*`の任意host permissionを許可した場合だけ有効化

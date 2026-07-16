@@ -53,6 +53,7 @@ async function reconcileDiscordLauncherRegistrationOnce(
       },
     ]);
   }
+  await injectInactiveLaunchers();
   return true;
 }
 
@@ -78,6 +79,20 @@ async function unregisterDiscordLauncher(): Promise<void> {
   await browser.scripting
     .unregisterContentScripts({ ids: [DISCORD_LAUNCHER_SCRIPT_ID] })
     .catch(() => undefined);
+}
+
+/** Injects the launcher into matching tabs that were already open before registration. */
+async function injectInactiveLaunchers(): Promise<void> {
+  const tabs = await browser.tabs.query({ url: DISCORD_CHANNEL_MATCH }).catch(() => []);
+  await Promise.all(
+    tabs.map((tab) =>
+      tab.id === undefined
+        ? Promise.resolve()
+        : browser.scripting
+            .executeScript({ target: { tabId: tab.id }, files: ['scan.js'] })
+            .catch(() => undefined),
+    ),
+  );
 }
 
 /** Removes inactive launchers from currently open Discord channel tabs before access is released. */

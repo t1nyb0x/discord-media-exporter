@@ -7,6 +7,7 @@ const browserMocks = vi.hoisted(() => ({
   getRegisteredContentScripts: vi.fn(),
   registerContentScripts: vi.fn(),
   unregisterContentScripts: vi.fn(),
+  executeScript: vi.fn(),
   queryTabs: vi.fn(),
   sendTabMessage: vi.fn(),
 }));
@@ -21,6 +22,7 @@ vi.mock('wxt/browser', () => ({
       getRegisteredContentScripts: browserMocks.getRegisteredContentScripts,
       registerContentScripts: browserMocks.registerContentScripts,
       unregisterContentScripts: browserMocks.unregisterContentScripts,
+      executeScript: browserMocks.executeScript,
     },
     tabs: {
       query: browserMocks.queryTabs,
@@ -35,6 +37,7 @@ describe('Discord launcher registration', () => {
     browserMocks.getRegisteredContentScripts.mockResolvedValue([]);
     browserMocks.registerContentScripts.mockResolvedValue(undefined);
     browserMocks.unregisterContentScripts.mockResolvedValue(undefined);
+    browserMocks.executeScript.mockResolvedValue([]);
     browserMocks.queryTabs.mockResolvedValue([]);
     browserMocks.sendTabMessage.mockResolvedValue(undefined);
     browserMocks.removePermission.mockResolvedValue(true);
@@ -46,6 +49,7 @@ describe('Discord launcher registration', () => {
 
   it('registers the inactive launcher only when optional Discord access is present', async () => {
     browserMocks.containsPermission.mockResolvedValue(true);
+    browserMocks.queryTabs.mockResolvedValue([{ id: 1 }, { id: 2 }, {}]);
     const { reconcileDiscordLauncherRegistration, DISCORD_LAUNCHER_SCRIPT_ID } =
       await import('../../src/platform/chrome/discord-launcher-registration');
 
@@ -65,6 +69,15 @@ describe('Discord launcher registration', () => {
         persistAcrossSessions: true,
       },
     ]);
+    expect(browserMocks.queryTabs).toHaveBeenCalledWith({ url: DISCORD_CHANNEL_MATCH });
+    expect(browserMocks.executeScript).toHaveBeenCalledWith({
+      target: { tabId: 1 },
+      files: ['scan.js'],
+    });
+    expect(browserMocks.executeScript).toHaveBeenCalledWith({
+      target: { tabId: 2 },
+      files: ['scan.js'],
+    });
   });
 
   it('does not duplicate an existing registration', async () => {
@@ -79,6 +92,21 @@ describe('Discord launcher registration', () => {
 
     expect(browserMocks.registerContentScripts).not.toHaveBeenCalled();
     expect(browserMocks.unregisterContentScripts).not.toHaveBeenCalled();
+    expect(browserMocks.queryTabs).toHaveBeenCalledWith({ url: DISCORD_CHANNEL_MATCH });
+  });
+
+  it('keeps automatic display enabled when an already-open tab cannot be injected', async () => {
+    browserMocks.containsPermission.mockResolvedValue(true);
+    browserMocks.queryTabs.mockResolvedValue([{ id: 1 }, { id: 2 }]);
+    browserMocks.executeScript
+      .mockRejectedValueOnce(new Error('tab closed'))
+      .mockResolvedValueOnce([]);
+    const { reconcileDiscordLauncherRegistration } =
+      await import('../../src/platform/chrome/discord-launcher-registration');
+
+    await expect(reconcileDiscordLauncherRegistration()).resolves.toBe(true);
+
+    expect(browserMocks.executeScript).toHaveBeenCalledTimes(2);
   });
 
   it('unregisters, cleans existing launchers, and releases permission when disabled', async () => {
