@@ -3,6 +3,7 @@ import {
   GuidedCollectionControls,
   revealVisibleSpoilers,
   scrollOnePageBackward,
+  scrollOnePageForward,
 } from '../../src/extractors/discord/guided-scroll';
 import { findMessageScrollContainer } from '../../src/extractors/discord/message-viewport';
 
@@ -35,14 +36,40 @@ describe('guided scroll collection', () => {
     expect(onScroll).not.toHaveBeenCalled();
   });
 
-  it('runs one step per explicit button click and stops from the page control', () => {
+  it('moves exactly one user-requested page forward and stops at the end', () => {
+    const container = prepareScrollableMessages(1_600);
+    const onScroll = vi.fn();
+    container.addEventListener('scroll', onScroll);
+
+    expect(scrollOnePageForward(document, window)).toEqual({
+      status: 'moved',
+      reachedEnd: false,
+    });
+    expect(container.scrollTop).toBe(2_160);
+    expect(onScroll).toHaveBeenCalledOnce();
+
+    container.scrollTop = 3_200;
+    expect(scrollOnePageForward(document, window)).toEqual({
+      status: 'moved',
+      reachedEnd: true,
+    });
+    expect(container.scrollTop).toBe(3_300);
+    expect(onScroll).toHaveBeenCalledTimes(2);
+
+    expect(scrollOnePageForward(document, window)).toEqual({ status: 'at_end' });
+    expect(onScroll).toHaveBeenCalledTimes(2);
+  });
+
+  it('runs one step per explicit direction button click and stops from the page control', () => {
     const onStart = vi.fn(async () => ({ ok: true as const, collectedCount: 0 }));
-    const onStep = vi.fn(() => ({ status: 'moved' as const, reachedStart: false }));
+    const onStepBackward = vi.fn(() => ({ status: 'moved' as const, reachedStart: false }));
+    const onStepForward = vi.fn(() => ({ status: 'moved' as const, reachedEnd: false }));
     const onRevealSpoilers = vi.fn(() => ({ revealed: 2, failed: 0 }));
     const onStop = vi.fn();
     const controls = new GuidedCollectionControls(document, {
       onStart,
-      onStep,
+      onStepBackward,
+      onStepForward,
       onRevealSpoilers,
       onStop,
     });
@@ -51,21 +78,27 @@ describe('guided scroll collection', () => {
     const buttons = host.shadowRoot!.querySelectorAll<HTMLButtonElement>('button');
 
     buttons[1]!.click();
-    expect(onStep).toHaveBeenCalledOnce();
+    expect(onStepBackward).toHaveBeenCalledOnce();
     expect(host.shadowRoot!.textContent).toContain('1画面戻りました');
 
     buttons[2]!.click();
+    expect(onStepForward).toHaveBeenCalledOnce();
+    expect(host.shadowRoot!.textContent).toContain('1画面進みました');
+
+    buttons[3]!.click();
     expect(onRevealSpoilers).toHaveBeenCalledOnce();
     expect(host.shadowRoot!.textContent).toContain('2件のスポイラー');
 
-    buttons[3]!.click();
+    buttons[4]!.click();
     expect(onStop).toHaveBeenCalledOnce();
 
     controls.setCollectedCount(500);
     expect(buttons[1]!.disabled).toBe(true);
+    expect(buttons[2]!.disabled).toBe(true);
     expect(host.shadowRoot!.textContent).toContain('500件');
     controls.setCollectedCount(10);
     expect(buttons[1]!.disabled).toBe(false);
+    expect(buttons[2]!.disabled).toBe(false);
     controls.remove();
     expect(document.getElementById('discord-media-exporter-guided-controls')).toBeNull();
   });
@@ -74,7 +107,8 @@ describe('guided scroll collection', () => {
     const onStart = vi.fn(async () => ({ ok: true as const, collectedCount: 4 }));
     const controls = new GuidedCollectionControls(document, {
       onStart,
-      onStep: vi.fn(() => ({ status: 'at_start' as const })),
+      onStepBackward: vi.fn(() => ({ status: 'at_start' as const })),
+      onStepForward: vi.fn(() => ({ status: 'at_end' as const })),
       onRevealSpoilers: vi.fn(() => ({ revealed: 0, failed: 0 })),
       onStop: vi.fn(),
     });
@@ -99,7 +133,8 @@ describe('guided scroll collection', () => {
   it('keeps the launcher inactive when collection cannot start', async () => {
     const controls = new GuidedCollectionControls(document, {
       onStart: vi.fn(async () => ({ ok: false as const, message: '開始できませんでした。' })),
-      onStep: vi.fn(() => ({ status: 'at_start' as const })),
+      onStepBackward: vi.fn(() => ({ status: 'at_start' as const })),
+      onStepForward: vi.fn(() => ({ status: 'at_end' as const })),
       onRevealSpoilers: vi.fn(() => ({ revealed: 0, failed: 0 })),
       onStop: vi.fn(),
     });
@@ -116,9 +151,31 @@ describe('guided scroll collection', () => {
     controls.remove();
   });
 
+  it('reports upper and lower boundaries without starting another scroll', () => {
+    const controls = new GuidedCollectionControls(document, {
+      onStart: vi.fn(async () => ({ ok: true as const, collectedCount: 0 })),
+      onStepBackward: () => ({ status: 'at_start' }),
+      onStepForward: () => ({ status: 'at_end' }),
+      onRevealSpoilers: () => ({ revealed: 0, failed: 0 }),
+      onStop: vi.fn(),
+    });
+    const host = document.getElementById('discord-media-exporter-guided-controls')!;
+    const buttons = host.shadowRoot!.querySelectorAll<HTMLButtonElement>('button');
+
+    controls.showActive(0);
+    buttons[1]!.click();
+    expect(host.shadowRoot!.textContent).toContain('現在は上端');
+
+    buttons[2]!.click();
+    expect(host.shadowRoot!.textContent).toContain('現在は下端');
+
+    controls.remove();
+  });
+
   it('fails safely when the message scroll container is unavailable', () => {
     document.body.replaceChildren(document.createElement('main'));
     expect(scrollOnePageBackward(document, window)).toEqual({ status: 'unavailable' });
+    expect(scrollOnePageForward(document, window)).toEqual({ status: 'unavailable' });
   });
 
   it('reveals only visible labelled spoiler controls and caps one action at 50', () => {

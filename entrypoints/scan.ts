@@ -4,6 +4,7 @@ import {
   GuidedCollectionControls,
   revealVisibleSpoilers,
   scrollOnePageBackward,
+  scrollOnePageForward,
 } from '../src/extractors/discord/guided-scroll';
 import type { CandidateCollection, ScanResult } from '../src/domain/media';
 import { discordChannelScope } from '../src/domain/url';
@@ -223,7 +224,8 @@ function ensureControls(controller: CollectorController): GuidedCollectionContro
             : '自動収集を開始できませんでした。',
       };
     },
-    onStep: () => scrollOnePageBackward(document, window),
+    onStepBackward: () => scrollOnePageBackward(document, window),
+    onStepForward: () => scrollOnePageForward(document, window),
     onRevealSpoilers: () => revealVisibleSpoilers(document, window),
     onStop: () => {
       controller.collector?.stop();
