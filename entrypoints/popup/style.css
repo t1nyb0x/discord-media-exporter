@@ -116,6 +116,58 @@ h2 {
   background: #4752c4;
 }
 
+.launcher-setting {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #35373c;
+  border-radius: 7px;
+  background: #2b2d31;
+}
+
+.launcher-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.launcher-setting-title,
+.launcher-setting-description {
+  display: block;
+}
+
+.launcher-setting-title {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.launcher-setting-description,
+.launcher-setting-status {
+  color: #b5bac1;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.launcher-setting-description {
+  margin-top: 3px;
+}
+
+.launcher-setting-status {
+  margin: 7px 0 0;
+}
+
+.launcher-setting-status-error {
+  color: #fa777c;
+}
+
+#launcher-setting-toggle {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 20px;
+  accent-color: #5865f2;
+}
+
 .button-secondary {
   width: 100%;
   padding: 8px 14px;

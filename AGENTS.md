@@ -80,7 +80,8 @@ tests/
 - DOMに存在しても画面外の候補は収集しない
 - timer、再帰、連続loopによる無人スクロールを行わない
 - Discordトークン、Cookie、Local Storageの認証情報を読まない
-- `<all_urls>`、`cookies`、`webRequest`、恒久的host permissionを追加しない
+- `<all_urls>`、`cookies`、`webRequest`、必須host permissionを追加しない
+- Discordページの常時launcher用権限は`https://discord.com/*`の任意権限だけとし、明示opt-in、解除UI、開始前scan禁止をADR-0008に従って維持する
 - ZIP用CDN権限は任意権限とし、処理の終端で解放する
 - Discord CDN以外へメディアURLを送信しない
 - 完全な署名付きURL、個人情報、保存先パスをログへ出さない

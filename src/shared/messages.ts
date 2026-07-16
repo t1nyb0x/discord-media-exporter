@@ -13,7 +13,10 @@ export type ExtensionRequest =
   | { type: 'GET_DOWNLOAD_STATUS' }
   | { type: 'START_ZIP_EXPORT'; candidateIds: string[] }
   | { type: 'CANCEL_ZIP_EXPORT' }
-  | { type: 'GET_EXPORT_STATUS' };
+  | { type: 'GET_EXPORT_STATUS' }
+  | { type: 'GET_DISCORD_LAUNCHER_SETTING' }
+  | { type: 'SYNC_DISCORD_LAUNCHER_SETTING' }
+  | { type: 'DISABLE_DISCORD_LAUNCHER_SETTING' };
 
 export type ExtensionResponse =
   | { ok: true; type: 'SCAN_REGISTERED'; collection: CandidateCollection }
@@ -24,6 +27,7 @@ export type ExtensionResponse =
   | { ok: true; type: 'ZIP_EXPORT_STARTED'; state: ZipExportState }
   | { ok: true; type: 'ZIP_EXPORT_CANCELLED'; state: ZipExportState }
   | { ok: true; type: 'ZIP_EXPORT_STATUS'; state: ZipExportState }
+  | { ok: true; type: 'DISCORD_LAUNCHER_SETTING'; enabled: boolean }
   | { ok: false; error: string };
 
 /** Validates an untrusted extension request before background dispatch. */
@@ -50,6 +54,9 @@ export function isExtensionRequest(value: unknown): value is ExtensionRequest {
     case 'GET_DOWNLOAD_STATUS':
     case 'GET_EXPORT_STATUS':
     case 'CANCEL_ZIP_EXPORT':
+    case 'GET_DISCORD_LAUNCHER_SETTING':
+    case 'SYNC_DISCORD_LAUNCHER_SETTING':
+    case 'DISABLE_DISCORD_LAUNCHER_SETTING':
       return true;
     default:
       return false;

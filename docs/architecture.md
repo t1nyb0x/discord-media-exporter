@@ -51,8 +51,10 @@ Background Service Worker ── chrome.downloads ── ローカル保存先
 
 ### Visible Media Collector
 
-- `activeTab` と `chrome.scripting.executeScript` で、ユーザーの開始操作時だけ `scan.js` を注入
-- manifest 登録の常駐 content script と恒久的 host permission は使用しない
+- 常時表示OFFでは、`activeTab`と`chrome.scripting.executeScript`でpopupの明示操作後に`scan.js`を注入
+- 常時表示ONでは、任意のDiscord host permissionを許可した場合だけdynamic content scriptでinactive launcherを注入
+- manifest登録の静的content script、必須host permission、`<all_urls>`は使用しない
+- どちらの注入経路でも、ページ内の開始操作までは候補走査と表示変化の監視を開始しない
 - 初回走査後、scroll、resize、DOM変更を監視し、250 ms debounceで現在の表示領域を再走査
 - チャンネル変更を検出した場合は監視を停止し、新しいチャンネルでは再度開始操作を要求
 - `DOM Adapter` を呼び出して候補を抽出
@@ -143,9 +145,11 @@ manifest の権限は以下です。
 | `storage`   | 検証済み候補と短命な処理状態               | 必須 |
 | `offscreen` | メディアZIPのBlob生成                      | 必須 |
 
-`tabs`, `cookies`, `webRequest`, `<all_urls>` および恒久的な host permission は要求しません。popup から WXT の unlisted script を動的注入し、`chrome.downloads` へ検証済み URL を直接渡します。拡張機能自身による CDN への `fetch()` は行いません。
+`tabs`, `cookies`, `webRequest`, `<all_urls>` および必須host permissionは要求しません。常時launcher表示を利用しない場合は、popupからWXTのunlisted scriptを`activeTab`で動的注入します。
 
 上記は個別保存の設計です。Phase 5 のメディア ZIP では response body が必要になるため、`cdn.discordapp.com` と `media.discordapp.net` を `optional_host_permissions` として宣言し、ZIP 開始操作時だけ要求して終端状態で解放します。また Blob URL を扱う offscreen document のため `offscreen` permission を追加します。恒久的な必須 host permission や `<all_urls>` は追加しません。詳細は[メディア ZIP 出力仕様](zip-export.md)と[ADR-0003](adr/0003-generate-media-zip-locally.md)を参照してください。
+
+Issue #22で`https://discord.com/*`も`optional_host_permissions`へ追加しました。利用者が常時表示を明示的にONにした場合だけ要求し、許可中は`https://discord.com/channels/*`へ軽量launcherを`chrome.scripting.registerContentScripts()`で動的登録します。OFF・権限取消時は登録解除と権限解放を行います。静的manifest `content_scripts`は使用せず、未許可時は`activeTab`経路を維持します。詳細は[ADR-0008](adr/0008-opt-in-discord-launcher-permission.md)を参照してください。
 
 ## 8. メッセージング
 
@@ -246,12 +250,16 @@ Issue #19で追加した順序精度を高める操作は[ADR-0006](adr/0006-gui
 
 ## 14. Phase 7: ガイド付き一画面収集
 
-`scan.ts`が既存の`VisibleMediaCollector`を開始した後、Discord documentの`body`直下へShadow DOMのガイドhostを追加します。ガイドはDiscordのメッセージDOM外に置き、media extractorの対象に含めません。
+常時表示OFFではpopupを開いた明示操作で`scan.ts`をprogrammatic injectionします。常時表示ONでは同じlauncher entrypointを動的content scriptとしてDiscordチャンネルへ自動注入します。どちらもDiscord documentの`body`直下へShadow DOMのinactive launcherを追加し、開始ボタンを押すまでは`VisibleMediaCollector`を生成せず、media extractor、MutationObserver、scroll・resize監視を実行しません。
 
 - `message-viewport.ts`: message viewportとscrollable ancestorを特定
-- `guided-scroll.ts`: 一回の操作で表示高の80%だけ選択方向へ移動し、ガイドUIを管理
+- `guided-scroll.ts`: inactive・active状態と、一回の操作で表示高の80%だけ選択方向へ移動するガイドUIを管理
 - `visible-media-collector.ts`: scroll・DOM変更後の可視範囲scanと停止callback
-- `scan.ts`: collectorとガイドのlifecycle、backgroundへの候補登録を接続
+- `scan.ts`: popup・ページ内開始操作を一つのguard付きstart処理へ接続し、collector lifecycleと初回候補登録を所有
+
+popupとページ内launcherのどちらから開始しても、page-scoped controllerが初回scanをservice workerへ登録します。これによりページ内ボタンを押した直後にpopupが閉じていても開始処理を完了できます。停止後はcollectorの監視を終了し、ガイドをinactive launcherへ戻します。
+
+inactive・active両状態のlauncher scopeはWeb標準のNavigation APIで監視し、別チャンネルまたは対応外画面へのSPA遷移開始時にcollectorとガイドをcleanupします。`webNavigation` permissionや常駐content scriptは使用しません。
 
 ガイドはtimerや連続loopを所有しません。button clickから同期的に一回だけ`scrollTop`を変更し、その後の収集は既存collectorのdebounceとMutationObserverに委ねます。詳細は[Phase 7仕様](guided-scroll-collection.md)と[ADR-0006](adr/0006-guide-one-scroll-step-per-user-action.md)に従います。
 

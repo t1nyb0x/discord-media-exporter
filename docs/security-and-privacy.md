@@ -28,6 +28,14 @@
 
 自動収集はユーザーが開始したタブ内だけで動作します。popupが閉じた後もscroll、resize、DOM変更を監視しますが、対象はその時点でメッセージ表示領域と交差する添付だけです。別チャンネルへの移動、再読み込み、タブ終了、または「自動収集を停止」で監視を終了します。
 
+常時表示を許可していない場合、ツールバーアイコンからpopupを開いた明示操作後に現在のDiscordチャンネルへinactive launcherを注入します。「Discordで開始ボタンを常に表示」をONにした場合は、`https://discord.com/*`の任意host permissionを要求し、許可中だけDiscordチャンネルへ軽量launcherを動的content scriptとして自動注入します。
+
+どちらの注入方式でも、inactive状態ではメディア候補をscanせず、MutationObserver、scroll・resize監視、候補登録も開始しません。popupまたはページ内の「自動収集を開始」を押した後だけcollectorを開始します。
+
+Discordサイト権限は常時表示をONにしている間だけ保持し、OFF操作でdynamic content scriptを登録解除して権限を解放します。Chrome設定等から権限が取り消された場合も登録状態を照合して解除します。ZIP用CDN権限とは異なり、各処理の終端では解放せず、常時表示設定のOFFまで保持します。
+
+別チャンネルまたは対応外画面へのSPA遷移はWeb標準のNavigation APIで検知し、inactive launcherとactive collectorをcleanupします。このために`webNavigation` permissionは追加しません。
+
 Phase 7のガイド付き収集は、ユーザーがページ内の「1画面戻る」または「1画面進む」を押した場合だけ、一回だけ選択方向へ移動します。timer・再帰・連続loopによる無人scrollは行いません。ガイドはShadow DOMへ隔離し、外部script、`innerHTML`、追加permissionを使用しません。
 
 順序優先収集では、ユーザーが開始地点まで一画面ずつ移動し、popupの既存操作で収集結果を明示的にクリアしてから、一画面ずつ新しい投稿方向へ進みます。最上部への自動移動、収集結果の自動クリア、下端までの自動巡回は行いません。開始地点が最古投稿であることと、メッセージ単位の完全な添付順は保証しません。
@@ -145,7 +153,7 @@ Chrome Web Store へは公開しません。ビルド済みフォルダを信頼
 
 Phase 5 の追加項目:
 
-- [ ] 必須 host permission がなく、任意 host permission が Discord CDN 2 ホストだけである
+- [ ] 必須 host permission がなく、任意 host permission がDiscordページ1ホストとDiscord CDN 2ホストだけである
 - [ ] ZIP の全終端状態で任意 host permission を解放する
 - [ ] `offscreen` permission の用途が Blob に限定され、処理後に document と Blob URL を破棄する
 - [ ] ZIP 取得で `credentials: 'omit'` を使い、redirect 後 URL を再検証している
@@ -165,7 +173,11 @@ Phase 6 の追加項目:
 
 Phase 7 の追加項目:
 
-- [ ] ガイドはpopupで収集開始後だけ表示される
+- [ ] 常時表示OFFではinactive launcherがpopupを開いた明示操作後だけ表示される
+- [ ] 常時表示ONは明示clickから任意Discordサイト権限を要求し、拒否時は有効化しない
+- [ ] 常時表示OFF・権限取消時にdynamic content scriptとDiscordサイト権限を解除する
+- [ ] inactive launcherでは開始clickまでscan、MutationObserver、scroll・resize監視、候補登録を行わない
+- [ ] popupとページ内開始操作がcollectorを重複起動しない
 - [ ] 一回のclickに対してscroll処理が一回だけ実行される
 - [ ] timer・再帰・連続loopによる無人scroll経路がない
 - [ ] 上端・下端・container不明・500件到達時に追加移動しない

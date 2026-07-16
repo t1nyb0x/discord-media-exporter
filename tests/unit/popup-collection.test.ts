@@ -12,6 +12,7 @@ const browserMocks = vi.hoisted(() => ({
   sendTabMessage: vi.fn(),
   queryTabs: vi.fn(),
   executeScript: vi.fn(),
+  requestPermission: vi.fn(),
 }));
 
 vi.mock('wxt/browser', () => ({
@@ -19,7 +20,7 @@ vi.mock('wxt/browser', () => ({
     runtime: { sendMessage: browserMocks.sendMessage },
     tabs: { query: browserMocks.queryTabs, sendMessage: browserMocks.sendTabMessage },
     scripting: { executeScript: browserMocks.executeScript },
-    permissions: { request: vi.fn(), remove: vi.fn() },
+    permissions: { request: browserMocks.requestPermission, remove: vi.fn() },
   },
 }));
 
@@ -37,10 +38,28 @@ describe('popup scan collection', () => {
   it('restores a session collection, starts automatic collection, and allows it to stop', async () => {
     vi.useFakeTimers();
     browserMocks.queryTabs.mockResolvedValue([{ id: 1, url: scope }]);
-    browserMocks.executeScript.mockResolvedValue([
-      { result: { ok: true, scope, candidates: [secondCandidate] } },
-    ]);
-    browserMocks.sendTabMessage.mockResolvedValue({ active: false });
+    browserMocks.executeScript.mockResolvedValue([{ result: { active: false } }]);
+    browserMocks.sendTabMessage.mockImplementation(
+      async (_tabId: number, request: { type: string }) => {
+        switch (request.type) {
+          case 'GET_MEDIA_COLLECTOR_STATUS':
+            return { type: 'MEDIA_COLLECTOR_STATUS', active: false };
+          case 'START_MEDIA_COLLECTOR':
+            return {
+              type: 'MEDIA_COLLECTOR_STARTED',
+              active: true,
+              collection: { scope, candidates: [firstCandidate, secondCandidate] },
+              visibleCandidateCount: 1,
+            };
+          case 'SET_MEDIA_COLLECTOR_COUNT':
+            return { type: 'MEDIA_COLLECTOR_STATUS', active: true };
+          case 'STOP_MEDIA_COLLECTOR':
+            return { type: 'MEDIA_COLLECTOR_STATUS', active: false };
+          default:
+            throw new Error('unexpected tab request');
+        }
+      },
+    );
     browserMocks.sendMessage.mockImplementation(async (request: { type: string }) => {
       switch (request.type) {
         case 'GET_SCAN_COLLECTION':
@@ -48,12 +67,6 @@ describe('popup scan collection', () => {
             ok: true,
             type: 'SCAN_COLLECTION',
             collection: { scope, candidates: [firstCandidate] },
-          };
-        case 'REGISTER_SCAN_RESULT':
-          return {
-            ok: true,
-            type: 'SCAN_REGISTERED',
-            collection: { scope, candidates: [firstCandidate, secondCandidate] },
           };
         case 'CLEAR_SCAN_COLLECTION':
           return {
@@ -83,6 +96,13 @@ describe('popup scan collection', () => {
     await import('../../entrypoints/popup/main');
     await flushPromises();
 
+    expect(browserMocks.executeScript).toHaveBeenCalledWith({
+      target: { tabId: 1 },
+      files: ['scan.js'],
+    });
+    expect(browserMocks.sendMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'REGISTER_SCAN_RESULT' }),
+    );
     expect(document.querySelectorAll('#candidate-list li')).toHaveLength(1);
     const thumbnail = document.querySelector<HTMLImageElement>('.media-thumbnail');
     expect(thumbnail).not.toBeNull();
@@ -103,10 +123,8 @@ describe('popup scan collection', () => {
     document.getElementById('scan-button')?.click();
     await flushPromises();
 
-    expect(browserMocks.sendMessage).toHaveBeenCalledWith({
-      type: 'REGISTER_SCAN_RESULT',
-      scope,
-      candidates: [secondCandidate],
+    expect(browserMocks.sendTabMessage).toHaveBeenCalledWith(1, {
+      type: 'START_MEDIA_COLLECTOR',
     });
     expect(document.querySelectorAll('#candidate-list li')).toHaveLength(2);
     expect(document.getElementById('candidate-count')?.textContent).toBe('2件');
@@ -136,9 +154,10 @@ describe('popup scan collection', () => {
     vi.useFakeTimers();
     browserMocks.queryTabs.mockResolvedValue([{ id: 1, url: scope }]);
     browserMocks.sendTabMessage.mockImplementation(
-      async (_tabId: number, request: { type: string }) => ({
-        active: request.type === 'GET_MEDIA_COLLECTOR_STATUS',
-      }),
+      async (_tabId: number, request: { type: string }) =>
+        request.type === 'GET_MEDIA_COLLECTOR_STATUS'
+          ? { type: 'MEDIA_COLLECTOR_STATUS', active: true }
+          : { type: 'MEDIA_COLLECTOR_STATUS', active: false },
     );
     browserMocks.sendMessage.mockImplementation(async (request: { type: string }) => {
       switch (request.type) {
@@ -178,8 +197,92 @@ describe('popup scan collection', () => {
     expect(browserMocks.sendTabMessage).toHaveBeenCalledWith(1, {
       type: 'STOP_MEDIA_COLLECTOR',
     });
-    expect(browserMocks.executeScript).not.toHaveBeenCalled();
+    expect(browserMocks.executeScript).toHaveBeenCalledOnce();
     expect(document.getElementById('scan-button')?.textContent).toBe('自動収集を開始');
+  });
+
+  it('enables and disables automatic launcher display from explicit permission actions', async () => {
+    vi.useFakeTimers();
+    browserMocks.queryTabs.mockResolvedValue([{ id: 1, url: scope }]);
+    browserMocks.executeScript.mockResolvedValue([{ result: { active: false } }]);
+    browserMocks.sendTabMessage.mockResolvedValue({
+      type: 'MEDIA_COLLECTOR_STATUS',
+      active: false,
+    });
+    browserMocks.requestPermission.mockResolvedValue(true);
+    browserMocks.sendMessage.mockImplementation(async (request: { type: string }) => {
+      switch (request.type) {
+        case 'GET_SCAN_COLLECTION':
+          return {
+            ok: true,
+            type: 'SCAN_COLLECTION',
+            collection: { scope, candidates: [] },
+          };
+        case 'GET_DISCORD_LAUNCHER_SETTING':
+          return { ok: true, type: 'DISCORD_LAUNCHER_SETTING', enabled: false };
+        case 'SYNC_DISCORD_LAUNCHER_SETTING':
+          return { ok: true, type: 'DISCORD_LAUNCHER_SETTING', enabled: true };
+        case 'DISABLE_DISCORD_LAUNCHER_SETTING':
+          return { ok: true, type: 'DISCORD_LAUNCHER_SETTING', enabled: false };
+        case 'GET_DOWNLOAD_STATUS':
+          return { ok: true, type: 'DOWNLOAD_STATUS', state: { items: [] } };
+        case 'GET_EXPORT_STATUS':
+          return {
+            ok: true,
+            type: 'ZIP_EXPORT_STATUS',
+            state: {
+              status: 'idle',
+              totalItems: 0,
+              completedItems: 0,
+              processedBytes: 0,
+            },
+          };
+        default:
+          return { ok: false, error: 'unexpected' };
+      }
+    });
+
+    loadPopupFixture();
+    await import('../../entrypoints/popup/main');
+    await flushPromises();
+
+    const toggle = document.getElementById('launcher-setting-toggle') as HTMLInputElement;
+    expect(toggle.checked).toBe(false);
+    expect(toggle.disabled).toBe(false);
+
+    toggle.checked = true;
+    toggle.dispatchEvent(new Event('change'));
+    await flushPromises();
+
+    expect(browserMocks.requestPermission).toHaveBeenCalledWith({
+      origins: ['https://discord.com/*'],
+    });
+    expect(browserMocks.sendMessage).toHaveBeenCalledWith({
+      type: 'SYNC_DISCORD_LAUNCHER_SETTING',
+    });
+    expect(toggle.checked).toBe(true);
+    expect(document.getElementById('launcher-setting-status')?.textContent).toContain('ON');
+
+    toggle.checked = false;
+    toggle.dispatchEvent(new Event('change'));
+    await flushPromises();
+
+    expect(browserMocks.sendMessage).toHaveBeenCalledWith({
+      type: 'DISABLE_DISCORD_LAUNCHER_SETTING',
+    });
+    expect(toggle.checked).toBe(false);
+    expect(document.getElementById('launcher-setting-status')?.textContent).toContain('OFF');
+
+    toggle.checked = true;
+    toggle.dispatchEvent(new Event('change'));
+    await flushPromises();
+
+    expect(toggle.checked).toBe(true);
+    expect(browserMocks.executeScript).toHaveBeenLastCalledWith({
+      target: { tabId: 1 },
+      files: ['scan.js'],
+    });
+    expect(browserMocks.executeScript).toHaveBeenCalledTimes(3);
   });
 });
 
