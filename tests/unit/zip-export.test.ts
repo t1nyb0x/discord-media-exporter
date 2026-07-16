@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { stableCandidateId } from '../../src/domain/id';
 import type { MediaCandidate } from '../../src/domain/media';
-import {
-  createZipArchiveFilename,
-  MAX_ZIP_ITEMS,
-  prepareZipEntries,
-} from '../../src/domain/zip-export';
+import { createZipArchiveFilename, prepareZipEntries } from '../../src/domain/zip-export';
 
 describe('ZIP export domain', () => {
   it('creates safe case-insensitive unique entry names while preserving extensions', () => {
@@ -30,15 +26,13 @@ describe('ZIP export domain', () => {
     expect(entries[1]?.filename.endsWith(' (2).png')).toBe(true);
   });
 
-  it('rejects an empty selection and more than the ZIP item limit', () => {
+  it('rejects an empty selection and accepts all 500 collected candidates', () => {
     expect(() => prepareZipEntries([])).toThrow('選択');
-    expect(() =>
+    expect(
       prepareZipEntries(
-        Array.from({ length: MAX_ZIP_ITEMS + 1 }, (_, index) =>
-          createCandidate(index, `file-${index}.png`),
-        ),
+        Array.from({ length: 500 }, (_, index) => createCandidate(index, `file-${index}.png`)),
       ),
-    ).toThrow(`${MAX_ZIP_ITEMS}件まで`);
+    ).toHaveLength(500);
   });
 
   it('creates a channel-name-free archive filename in local time', () => {

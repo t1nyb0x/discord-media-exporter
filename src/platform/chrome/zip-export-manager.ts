@@ -38,6 +38,7 @@ class ChromeZipExportManager {
       totalItems: entries.length,
       completedItems: 0,
       processedBytes: 0,
+      outputBytes: 0,
     };
     await this.persist();
 
@@ -101,12 +102,13 @@ class ChromeZipExportManager {
         this.state.status = event.phase;
         this.state.completedItems = clamp(event.completedItems, 0, this.state.totalItems);
         this.state.processedBytes = Math.max(0, event.processedBytes);
+        this.state.outputBytes = Math.max(0, event.outputBytes);
         if (event.currentFilename === undefined) delete this.state.currentFilename;
         else this.state.currentFilename = event.currentFilename;
         await this.persist();
         return;
       case 'ZIP_READY':
-        await this.saveZip(event.blobUrl, event.processedBytes);
+        await this.saveZip(event.blobUrl, event.processedBytes, event.outputBytes);
         return;
       case 'ZIP_FAILED':
         if (event.cancelled === true) {
@@ -130,7 +132,11 @@ class ChromeZipExportManager {
     await this.finishDownload(status);
   }
 
-  private async saveZip(blobUrl: string, processedBytes: number): Promise<void> {
+  private async saveZip(
+    blobUrl: string,
+    processedBytes: number,
+    outputBytes: number,
+  ): Promise<void> {
     if (!isExtensionBlobUrl(blobUrl) || this.state.archiveFilename === undefined) {
       await this.setFailed('ZIP_FAILED');
       return;
@@ -146,6 +152,7 @@ class ChromeZipExportManager {
       this.state.status = 'saving';
       this.state.downloadId = downloadId;
       this.state.processedBytes = Math.max(0, processedBytes);
+      this.state.outputBytes = Math.max(0, outputBytes);
       this.state.completedItems = this.state.totalItems;
       delete this.state.currentFilename;
       await this.persist();

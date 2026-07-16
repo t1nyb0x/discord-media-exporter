@@ -6,7 +6,7 @@ Phase 5 のメディア ZIP は、選択件数 100 件、1ファイル 50 MiB、
 
 この文書でいう「すべて」は、開始時にユーザーが選択した検証済み候補の全件です。現在の候補収集上限 500 件は別の安全境界として維持します。ディスク空き容量、Chrome が拡張機能 origin に割り当てるクォータ、取得元 URL の有効性まで無制限になることは意味しません。
 
-実装状況: Documentation / technical spike pending
+実装状況: `0.5.0` core implementation complete / Chrome Stable large-volume verification and LZIP-07 known-size estimate follow-up pending
 
 ## 2. 前提の整理
 
@@ -80,15 +80,15 @@ Phase 5 のメディア ZIP は、選択件数 100 件、1ファイル 50 MiB、
 
 Phase 6 はアプリケーション固定の件数・バイト上限を廃止しますが、次の実行時境界を維持します。
 
-| 資源                       | 方針                                                                                     |
-| -------------------------- | ---------------------------------------------------------------------------------------- |
-| 候補件数                   | 既存のチャンネル単位500件上限を維持する                                                  |
-| JavaScript heap            | fetch chunk、writer内部状態、未書き込みqueueだけ。archive全体を保持しない                |
-| OPFS                       | 完成予定ZIP一つと小さなメタデータだけ。入力responseの複製を置かない                      |
-| origin quota               | `estimate()`で参考表示し、全write/closeの失敗を処理する                                  |
-| 物理ディスク               | 正確な事前把握は保証されない。書き込み・downloadの容量不足を失敗として処理する           |
-| ZIP形式                    | ZIP64を必須とし、4 GiB境界、entry offset、central directoryを64-bit値で扱う              |
-| writer → OPFS backpressure | 各入力chunkの処理後に、それまでの出力write完了を待ってから次のresponse chunkを読み進める |
+| 資源                       | 方針                                                                                                  |
+| -------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 候補件数                   | 既存のチャンネル単位500件上限を維持する                                                               |
+| JavaScript heap            | 現在のfetch chunk、最大2件の先行response、1 MiB write buffer、writer内部状態。archive全体を保持しない |
+| OPFS                       | 完成予定ZIP一つと小さなメタデータだけ。入力responseの複製を置かない                                   |
+| origin quota               | `estimate()`で参考表示し、全write/closeの失敗を処理する                                               |
+| 物理ディスク               | 正確な事前把握は保証されない。書き込み・downloadの容量不足を失敗として処理する                        |
+| ZIP形式                    | ZIP64を必須とし、4 GiB境界、entry offset、central directoryを64-bit値で扱う                           |
+| writer → OPFS backpressure | 最大1 MiBまで出力を集約し、flush時はOPFS write完了を待ってから次のresponse chunkを読み進める          |
 
 既知の入力サイズから算出する必要容量は参考値です。`ZipPassThrough`相当のstore方式では概ね入力合計にlocal header、data descriptor、central directory等が加わりますが、未知のresponse、ファイル名長、ZIP64 extra field、クォータ推定誤差があるため、開始可否の絶対保証には使いません。
 
@@ -108,8 +108,9 @@ Offscreen document
   │ createWritable() → job-<random>.zip.part
   │
   ├─ fetch item 1 ─┐
-  ├─ fetch item 2 ─┼─ ZIP64 streaming writer ─ backpressure ─ OPFS writable
-  └─ ...           ┘
+  ├─ fetch item 2 ─┼─ 最大3 requestを先行、entry順にconsume
+  └─ fetch item 3 ─┘
+                    └─ ZIP64 writer ─ 1 MiB buffer/backpressure ─ OPFS writable
   │ close → getFile() → URL.createObjectURL(File)
   ▼
 Background Service Worker
@@ -132,12 +133,22 @@ Blob URL revoke + OPFS temp delete + permission release
 
 ### ZIP writer
 
-現行の`fflate 0.8.3` streaming APIはchunk出力に利用できますが、Phase 6の必須要件であるZIP64 write対応を確認できません。4 GiB超を固定上限なしで扱うには、次のいずれかを技術spikeで選定します。
+`fflate 0.8.3`は既存archiveの展開互換性テストに残し、生成側には依存しません。Phase 6ではZIP64のstore方式に限定した小さなwriterを実装しました。
 
-1. ZIP64とstreaming outputを公式にサポートする監査可能なライブラリへ置き換える。
-2. ZIP64のstore方式に限定した小さなwriterを実装し、CRC32、64-bit size/offset、data descriptor、central directory、end recordを境界テストする。
+- CRC32を入力chunkごとに更新する
+- local file headerとZIP64 data descriptorを逐次出力する
+- entry size、offset、central directory size・offsetを`bigint`で保持する
+- ZIP64 EOCD、locator、従来EOCDを出力する
+- sinkは未書き込みchunkを最大1 MiBまで集約し、flush時はOPFS write完了を待つ
+- 圧縮は行わず、画像・動画等の再圧縮コストと一時メモリを避ける
 
-採用前にlicense、lockfile、既知脆弱性、bundle、ZIP64互換性、キャンセル、backpressureをレビューします。ZIP64非対応writerのまま「無制限」と表示することは禁止します。
+自動テストではZIP64 record、CRC、内容、entry名、backpressureを確認し、`fflate`で生成物を展開しています。4 GiB超の実archiveとOS標準展開機能の互換性はChrome Stable手動ゲートとして残します。
+
+### 取得・書き込み性能
+
+`0.5.0`ではCDN requestを最大3件まで開始し、現在entryのbodyを処理している間に後続responseを待機させます。ZIP writerがconsumeするentryは常に元の選択順で一件だけです。失敗またはキャンセル時は、現在readerと先行response bodyをすべてcancelします。
+
+OPFS sinkは小さなZIP chunkを最大1 MiBまでメモリ内で集約してから一回の`write()`へ渡します。バッファが閾値へ達した場合はwrite完了を待つため、未書き込みデータは有界です。進捗通知は最新状態だけを500ms単位でbackgroundへ送り、`chrome.storage.session`更新が取得・書き込みのクリティカルパスを占有しないようにします。
 
 ## 8. 状態とエラー
 
@@ -189,6 +200,20 @@ type LargeZipStatus =
 - 全失敗経路でreader、writer、writable、Blob URL、一時ファイル、任意権限を解放すること
 - 次回起動時に孤児一時ファイルを削除すること
 - ZIP64対応展開器でentry名、CRC、内容、サイズが一致すること
+
+`0.5.0`実装時点の結果:
+
+- 500 entryをZIP固有の件数拒否なしで生成・展開: Pass
+- ZIP64 EOCD、locator、central directoryの64-bit field: Pass
+- CRC、UTF-8 entry名、内容一致: Pass
+- sink writeのbackpressure: Pass
+- 最大3 requestの先行取得、entry順序維持、失敗時の全response cancel: Pass
+- 1 MiB未満のOPFS write集約: Pass
+- OPFS write、close、abort、remove、孤児cleanup: Pass
+- `QuotaExceededError`から`STORAGE_QUOTA_EXCEEDED`への変換: Pass
+- network request・response stream例外から`FETCH_FAILED`への変換: Pass
+
+`LZIP-07`のうち`navigator.storage.estimate()`による推定空き容量表示は実装済みです。開始前の既知`Content-Length`合計は、追加のHEAD requestや事前GETを行わずに候補情報だけから取得できないため、`0.5.0`では表示しません。選択件数、推定空き容量、処理中の実入力・実出力バイト数を表示し、既知サイズ合計はShould要件のfollow-upとして残します。
 
 ### Chrome Stable手動テスト
 

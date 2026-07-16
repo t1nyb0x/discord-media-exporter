@@ -1,10 +1,6 @@
 import { sanitizeFilename } from './filename';
 import type { MediaCandidate, ZipExportState, ZipExportStatus } from './media';
 
-export const MAX_ZIP_ITEMS = 100;
-export const MAX_ZIP_ITEM_BYTES = 50 * 1024 * 1024;
-export const MAX_ZIP_TOTAL_BYTES = 100 * 1024 * 1024;
-
 export interface ZipEntryCandidate {
   candidateId: string;
   sourceUrl: string;
@@ -14,17 +10,14 @@ export interface ZipEntryCandidate {
 export type ZipExportErrorCode =
   | 'FETCH_FAILED'
   | 'INVALID_REDIRECT'
-  | 'ITEM_TOO_LARGE'
-  | 'BATCH_TOO_LARGE'
+  | 'STORAGE_QUOTA_EXCEEDED'
+  | 'TEMP_WRITE_FAILED'
   | 'ZIP_FAILED'
   | 'SAVE_FAILED'
   | 'CONTEXT_LOST';
 
 export function prepareZipEntries(candidates: MediaCandidate[]): ZipEntryCandidate[] {
   if (candidates.length === 0) throw new Error('ZIPに保存するメディアを選択してください。');
-  if (candidates.length > MAX_ZIP_ITEMS) {
-    throw new Error(`ZIPに保存できるのは${MAX_ZIP_ITEMS}件までです。`);
-  }
 
   const usedNames = new Set<string>();
   return candidates.map((candidate) => ({
@@ -40,6 +33,7 @@ export function createIdleZipState(): ZipExportState {
     totalItems: 0,
     completedItems: 0,
     processedBytes: 0,
+    outputBytes: 0,
   };
 }
 
@@ -67,10 +61,10 @@ export function zipExportErrorMessage(code: ZipExportErrorCode, filename?: strin
       return `${target}取得できませんでした。再スキャンしてから試してください。`;
     case 'INVALID_REDIRECT':
       return `${target}安全な取得先として確認できませんでした。`;
-    case 'ITEM_TOO_LARGE':
-      return `${target}取得できませんでした。1ファイルの上限は50 MiBです。`;
-    case 'BATCH_TOO_LARGE':
-      return 'ZIPの合計上限100 MiBを超えたため中止しました。';
+    case 'STORAGE_QUOTA_EXCEEDED':
+      return 'ZIP一時ファイルを保存する空き容量が不足しています。';
+    case 'TEMP_WRITE_FAILED':
+      return 'ZIP一時ファイルへ書き込めませんでした。';
     case 'ZIP_FAILED':
       return 'ZIPを生成できませんでした。';
     case 'SAVE_FAILED':
@@ -88,7 +82,7 @@ function uniqueFilename(input: string, usedNames: Set<string>): string {
   }
 
   const { basename, extension } = splitExtension(safeName);
-  for (let index = 2; index <= MAX_ZIP_ITEMS + 1; index += 1) {
+  for (let index = 2; index <= usedNames.size + 2; index += 1) {
     const suffix = ` (${index})`;
     const candidate = sanitizeFilename(
       `${basename.slice(0, Math.max(1, 180 - extension.length - suffix.length))}${suffix}${extension}`,

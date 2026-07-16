@@ -6,7 +6,7 @@
 - Accepted: 2026-07-16
 
 > [!NOTE]
-> 本ADRはPhase 5のメモリ内Blob方式を扱います。固定上限を廃止し、ZIP64をOPFSへ直接書き込むPhase 6方針は[ADR-0005](0005-stream-large-zip-to-opfs.md)でAcceptedになりました。Phase 6が実装・検証されるまでは本ADRのPhase 5上限が有効です。
+> 本ADRはPhase 5のメモリ内Blob方式を扱う履歴です。`0.5.0`以降は、固定上限を廃止しZIP64をOPFSへ直接書き込む[ADR-0005](0005-stream-large-zip-to-opfs.md)の方式を採用します。
 
 ## Context
 
