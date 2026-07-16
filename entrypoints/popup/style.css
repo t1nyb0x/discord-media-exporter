@@ -195,16 +195,37 @@ select {
   background: #2b2d31;
 }
 
+.candidate-preview {
+  position: relative;
+  display: grid;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+}
+
 .media-icon {
   display: grid;
-  flex: 0 0 30px;
-  width: 30px;
-  height: 30px;
+  width: 100%;
+  height: 100%;
   place-items: center;
   border-radius: 6px;
   color: #fff;
   font-size: 12px;
   font-weight: 800;
+}
+
+.media-thumbnail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.media-thumbnail-loading {
+  opacity: 0;
 }
 
 .media-icon-image {

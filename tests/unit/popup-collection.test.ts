@@ -84,6 +84,20 @@ describe('popup scan collection', () => {
     await flushPromises();
 
     expect(document.querySelectorAll('#candidate-list li')).toHaveLength(1);
+    const thumbnail = document.querySelector<HTMLImageElement>('.media-thumbnail');
+    expect(thumbnail).not.toBeNull();
+    expect(thumbnail?.src).toBe(
+      'https://media.discordapp.net/attachments/111/201/file-1.png?width=80&height=80',
+    );
+    expect(thumbnail?.loading).toBe('lazy');
+    expect(thumbnail?.decoding).toBe('async');
+    expect(thumbnail?.referrerPolicy).toBe('no-referrer');
+    expect(thumbnail?.classList.contains('media-thumbnail-loading')).toBe(true);
+    thumbnail?.dispatchEvent(new Event('load'));
+    expect(thumbnail?.classList.contains('media-thumbnail-loading')).toBe(false);
+    thumbnail?.dispatchEvent(new Event('error'));
+    expect(document.querySelector('.media-thumbnail')).toBeNull();
+    expect(document.querySelector('.media-icon-image')?.textContent).toBe('画');
     expect(document.getElementById('notice')?.textContent).toContain('1件の収集結果を復元');
 
     document.getElementById('scan-button')?.click();
