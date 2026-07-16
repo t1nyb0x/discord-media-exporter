@@ -50,6 +50,7 @@ export interface ZipExportState {
   totalItems: number;
   completedItems: number;
   processedBytes: number;
+  outputBytes?: number;
   currentFilename?: string;
   downloadId?: number;
   error?: string;

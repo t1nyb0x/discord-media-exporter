@@ -14,8 +14,8 @@
 - Phase 4: 少人数への unpacked 配布継続を ADR-0002 で決定し、限定保守へ移行
 - Phase 5: `0.3.0`メディアZIP出力を実装・自動検証・実機確認し、ADR-0003をAcceptedとして完了
 - `0.4.1` follow-up: 自動収集ボタン状態復元を修正し、自動・実機回帰を完了
-- Phase 6: ZIP固定上限撤廃に向けたOPFS・ZIP64仕様を作成し、ADR-0005をAccepted
-- Phase 6 残作業: OPFS/downloadの大容量spike、ZIP64 writer選定、101件・500件・4 GiB超の実測
+- Phase 6: store方式ZIP64 writer、OPFS逐次出力、固定上限撤廃、quota表示、cleanupを`0.5.0`へ実装し、自動検証を完了
+- Phase 6 残作業: Chrome Stableでの101件・500件・1 GiB・4 GiB境界、quota・disk不足、OS展開互換性の実測と既知入力サイズ概算のfollow-up
 - 継続課題: 未確認の画面バリエーション、依存関係監査、実ブラウザ E2E
 
 ## Phase 0: Discovery / Policy gate
@@ -168,13 +168,24 @@
 - ZIP64 writer、OPFS adapter、backpressure、quota表示、cleanup
 - 101件・500件・1 GiB・4 GiB超・quota不足・disk不足の自動／手動検証記録
 
+実装状況:
+
+- [x] store方式ZIP64 streaming writer
+- [x] OPFS一時ファイルへの逐次write、close、getFile、削除
+- [x] writerからOPFSへのbackpressure
+- [x] ZIP固有の100件・50 MiB・100 MiB固定上限撤廃
+- [x] 最大500候補の全件処理、quota参考表示、入力・出力バイト進捗
+- [x] quota、write、キャンセル、孤児一時ファイルcleanupの自動テスト
+- [ ] 追加requestなしで取得可能な既知入力サイズ概算の設計
+- [ ] Chrome Stableでの大容量・容量不足・OS展開互換性の手動検証
+
 実装順:
 
-1. OPFSへのchunk write、`getFile()`、Blob URL、`chrome.downloads`の大容量spike
-2. ZIP64 streaming writerの選定またはstore方式writerの境界実装
-3. domain状態・エラー、quota見積り、OPFS lifecycleとcleanup
-4. 現行100件・50 MiB・100 MiB上限の置き換えとpopup表示更新
-5. synthetic ZIP64境界テスト、Chrome Stable実測、security・permissionレビュー
+1. [x] OPFSへのchunk write、`getFile()`、Blob URL、`chrome.downloads`への接続
+2. [x] store方式ZIP64 streaming writerの実装
+3. [x] domain状態・エラー、quota見積り、OPFS lifecycleとcleanup
+4. [x] 現行100件・50 MiB・100 MiB上限の置き換えとpopup表示更新
+5. [ ] Chrome Stable実測、4 GiB境界互換性、security・permissionレビュー
 
 終了条件:
 

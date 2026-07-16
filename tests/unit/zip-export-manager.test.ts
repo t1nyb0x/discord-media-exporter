@@ -82,6 +82,7 @@ describe('ChromeZipExportManager', () => {
       phase: 'fetching',
       completedItems: 1,
       processedBytes: 12,
+      outputBytes: 20,
       currentFilename: 'photo.png',
     });
     await manager.handleZipBackgroundEvent({
@@ -90,6 +91,7 @@ describe('ChromeZipExportManager', () => {
       jobId,
       blobUrl: 'blob:chrome-extension://test-extension-id/archive',
       processedBytes: 12,
+      outputBytes: 20,
     });
 
     expect(browserMocks.download).toHaveBeenCalledWith(

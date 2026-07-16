@@ -62,10 +62,12 @@
 18. [x] ADR-0003の承認とPhase 5完了判定
 19. [x] `0.4.1`自動収集ボタン状態修正の実機回帰確認
 20. [x] Phase 6の全選択ZIP要件、OPFS設計、Accepted ADR-0005
-21. [ ] OPFS、Blob URL、downloadsの大容量技術spike
-22. [ ] ZIP64 writer選定と4 GiB境界テスト
-23. [ ] 固定上限の置き換え、quota表示、cleanup実装
-24. [ ] 101件・500件・1 GiB・4 GiB超のChrome Stable実測
+21. [x] OPFS、Blob URL、downloadsを接続する逐次出力実装
+22. [x] store方式ZIP64 writer選定、ZIP64 record・CRC・backpressureの自動テスト
+23. [x] 固定上限の置き換え、quota表示、cleanup実装
+24. [x] 500件を固定上限なしで処理する自動テスト
+25. [ ] 101件・500件・1 GiB・4 GiB超のChrome Stable実測
+26. [ ] quota・保存先disk不足とOS標準展開機能の手動検証
 
 ## 5. ローカル確認手順
 
@@ -139,7 +141,7 @@ Phase 2 の詳細な自動検証結果と残作業は[検証記録](reviews/phas
 - キーボードだけで主要操作ができる
 - Chrome で手動確認されている
 - 関連ドキュメントと変更履歴が更新されている
-- ZIP の変更では[メディア ZIP 出力仕様](zip-export.md)の上限、原子性、権限、性能計測を満たしている
+- ZIP の変更では[Phase 6 ZIP仕様](large-zip-export.md)の原子性、権限、容量不足処理、性能計測を満たしている
 
 ## 9. リリース前チェック
 

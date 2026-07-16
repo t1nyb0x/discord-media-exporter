@@ -2,6 +2,36 @@
 
 このプロジェクトの利用者向け変更を記録します。バージョンは Semantic Versioning に従います。
 
+## [0.5.0] - 2026-07-16
+
+### Added
+
+- store方式のZIP64 streaming writer
+- ZIP出力chunkをOrigin Private File System（OPFS）の一時ファイルへ逐次書き込む処理
+- 入力バイト数とZIP出力バイト数の進捗表示
+- 開始前のOPFS推定空き容量表示
+- quota不足、OPFS write失敗、孤児一時ファイルcleanupの自動テスト
+
+### Changed
+
+- ZIP固有の100件、1ファイル50 MiB、入力合計100 MiBの固定上限を撤廃
+- 候補registryの既存上限500件まで、選択した全候補をZIP対象として受け付ける
+- archive全体をJavaScript heapへ蓄積せず、CDN responseからOPFSへbackpressure付きで逐次処理
+- CDN responseを最大3件まで先行取得し、ZIPへの格納順序を維持したまま通信待ちを重ねる
+- OPFS writeを最大1 MiBの有界バッファで集約し、進捗保存を500ms単位に間引く
+
+### Security
+
+- 入力responseをCache Storage、IndexedDB、`chrome.storage`へ複製しない
+- `unlimitedStorage`や新しいhost permissionを追加しない
+- 完了・失敗・キャンセル・download終了後と次回offscreen起動時に一時ファイルを削除
+
+### Known limitations
+
+- 保存可能容量はOPFSクォータ、物理ディスク空き容量、CDN URLの有効性に依存する
+- 1 GiB、4 GiB直前・超過、保存先disk不足、OS標準展開機能のChrome Stable実機検証は未完了
+- Chrome終了や拡張機能reload/updateをまたぐZIP生成の再開には非対応
+
 ## [0.4.1] - 2026-07-16
 
 ### Fixed

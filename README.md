@@ -7,8 +7,8 @@
 
 ## 現在の状態
 
-- フェーズ: Phase 6 / Disk-streamed full-selection ZIP design
-- 実装: `0.3.0`のメディアZIPと`0.4.1`の自動収集ボタン状態修正は実機確認済み。Phase 6は文書設計中
+- フェーズ: Phase 6 / Disk-streamed full-selection ZIP implementation
+- 実装: `0.5.0`でZIP64をOPFSへ逐次出力する方式へ移行。自動検証は完了し、大容量のChrome Stable実機検証は継続中
 - 対象: Google Chrome、Manifest V3
 - 最初の対象画面: `https://discord.com/channels/*`
 - 目的: 表示中メディアの保存支援
@@ -28,7 +28,10 @@
 - ファイル単位のダウンロード進捗・失敗理由の表示
 - service worker 再起動後のダウンロード状態再照合
 - 選択項目のメディアZIP出力、進捗、キャンセル
-- 100件・1ファイル50 MiB・合計100 MiBのZIP上限
+- ZIP固有の固定件数・バイト上限を設けない、最大500候補の全選択ZIP
+- store方式ZIP64 writerとOPFS一時ファイルへのbackpressure付き逐次出力
+- 最大3件の先行取得、1 MiBのOPFS書き込み集約、500ms単位の進捗更新
+- OPFS推定空き容量、入力・ZIP出力バイト数、quota・一時書き込み失敗の表示
 - ZIP終了時の任意CDN権限解放
 
 2026-07-15 に確認済み:
@@ -47,17 +50,18 @@
 - スポイラー付き添付などの画面バリエーション
 - ネットワーク切断や期限切れ URL などの異常系
 - Chrome/Discord の更新後の実機回帰
-- Phase 6のOPFS・ZIP64技術spikeと大容量計測
-- Phase 6のOPFS・ZIP64技術spikeと大容量計測
+- Phase 6の101件・500件、1 GiB、4 GiB境界、quota・disk不足のChrome Stable実測
+- Windows/macOS/Linuxの標準展開機能と代表的ZIP64対応ツールによる互換性確認
 
-Phase 5の実装方針:
+Phase 6の実装方針:
 
-- 選択したメディアを一つの ZIP にまとめる出力を追加
+- 選択した候補を候補registryの上限500件まで一つのZIPにまとめる
 - 既存の個別保存と表示範囲の制約は維持
-- 初期上限は 100 件・合計 100 MiB とし、実装 spike の実機計測で確定
+- CDN responseを一件ずつ読み、ZIP64出力をOPFS一時ファイルへ逐次書き込む
+- 固定容量上限の代わりにOPFSクォータと実書き込み結果を扱う
 - ZIP 利用時だけ Discord CDN 2 ホストへの任意アクセスを要求
 
-要件と実装順は[メディア ZIP 出力仕様](docs/zip-export.md)、設計判断は[ADR-0003](docs/adr/0003-generate-media-zip-locally.md)を参照してください。
+要件と検証計画は[Phase 6 全選択候補のディスクストリーミングZIP](docs/large-zip-export.md)、設計判断は[ADR-0005](docs/adr/0005-stream-large-zip-to-opfs.md)を参照してください。
 
 ## MVP の概要
 
@@ -94,11 +98,13 @@ pnpm build
 - [0.3.0 リリースノート](docs/release-notes-0.3.0.md)
 - [0.4.0 リリースノート](docs/release-notes-0.4.0.md)
 - [0.4.1 リリースノート](docs/release-notes-0.4.1.md)
+- [0.5.0 リリースノート](docs/release-notes-0.5.0.md)
 - [限定配布テストチェックリスト](docs/testing/limited-beta-checklist.md)
 - [Phase 5 メディアZIP手動テスト](docs/testing/zip-export-checklist.md)
 - [Phase 5 自動検証記録](docs/reviews/phase5-automated-verification.md)
 - [0.4.0 自動収集機能の検証記録](docs/reviews/0.4.0-automated-verification.md)
 - [0.4.1 リリース検証記録](docs/reviews/0.4.1-release-verification.md)
+- [Phase 6 自動検証記録](docs/reviews/phase6-automated-verification.md)
 - [Phase 6 全選択候補のディスクストリーミングZIP](docs/large-zip-export.md)
 - [保守・更新方針](docs/maintenance.md)
 - [ロードマップ](docs/roadmap.md)

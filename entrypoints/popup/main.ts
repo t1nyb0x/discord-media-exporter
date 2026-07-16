@@ -8,7 +8,6 @@ import type {
   ScanResult,
   ZipExportState,
 } from '../../src/domain/media';
-import { MAX_ZIP_ITEMS } from '../../src/domain/zip-export';
 import { MAX_COLLECTED_CANDIDATES } from '../../src/domain/download-manager';
 import { discordChannelScope } from '../../src/domain/url';
 import { isValidMediaCandidate } from '../../src/domain/validation';
@@ -250,12 +249,15 @@ async function startSelectedDownloads(): Promise<void> {
 }
 
 async function startSelectedZipExport(): Promise<void> {
-  if (state.selectedIds.size === 0 || state.selectedIds.size > MAX_ZIP_ITEMS) return;
-  setBusy(zipButton, true, '権限を確認中…');
+  if (state.selectedIds.size === 0) return;
+  setBusy(zipButton, true, '容量を確認中…');
   setNotice('');
 
   let permissionGranted = false;
   try {
+    const storageNotice = await storageAvailabilityNotice();
+    if (storageNotice !== '') setNotice(storageNotice);
+    setBusy(zipButton, true, '権限を確認中…');
     permissionGranted = await browser.permissions.request({ origins: [...ZIP_HOST_ORIGINS] });
     if (!permissionGranted) {
       throw new Error('ZIP保存に必要なDiscord CDNへのアクセスが許可されませんでした。');
@@ -277,6 +279,17 @@ async function startSelectedZipExport(): Promise<void> {
   } finally {
     setBusy(zipButton, false, 'ZIPにまとめて保存');
     updateSelectionSummary();
+  }
+}
+
+async function storageAvailabilityNotice(): Promise<string> {
+  try {
+    const estimate = await navigator.storage.estimate();
+    if (typeof estimate.quota !== 'number' || typeof estimate.usage !== 'number') return '';
+    const available = Math.max(0, estimate.quota - estimate.usage);
+    return `選択した${state.selectedIds.size}件をZIPへ逐次書き込みます。一時領域の推定空き容量: ${formatBytes(available)}。`;
+  } catch {
+    return `選択した${state.selectedIds.size}件をZIPへ逐次書き込みます。必要容量は事前に確認できませんでした。`;
   }
 }
 
@@ -365,12 +378,9 @@ function renderCandidates(): void {
 
 function updateSelectionSummary(): void {
   const count = state.selectedIds.size;
-  selectionSummary.textContent =
-    count > MAX_ZIP_ITEMS
-      ? `${count}件を選択中（ZIPは${MAX_ZIP_ITEMS}件まで）`
-      : `${count}件を選択中`;
+  selectionSummary.textContent = `${count}件を選択中`;
   downloadButton.disabled = count === 0 || state.zipActive;
-  zipButton.disabled = count === 0 || count > MAX_ZIP_ITEMS || state.zipActive;
+  zipButton.disabled = count === 0 || state.zipActive;
 }
 
 function renderProgress(downloadState: DownloadBatchState): void {
@@ -426,7 +436,8 @@ function renderZipProgress(zipState: ZipExportState): void {
   zipProgressSummary.textContent = [
     zipStatusLabel(zipState.status),
     `${zipState.completedItems}/${zipState.totalItems}件`,
-    formatBytes(zipState.processedBytes),
+    `入力 ${formatBytes(zipState.processedBytes)}`,
+    `ZIP ${formatBytes(zipState.outputBytes ?? 0)}`,
   ].join(' / ');
   zipProgressDetail.textContent =
     zipState.error ?? zipState.currentFilename ?? zipState.archiveFilename ?? '';

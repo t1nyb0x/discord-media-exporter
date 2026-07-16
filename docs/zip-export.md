@@ -7,7 +7,7 @@
 実装状況: 自動テスト、production build、Project ownerによる実機でのメディアZIP出力確認が完了し、ADR-0003はAcceptedです。Chromeバージョン、OS、容量別測定値は共有されていないため、本書では推測して補完しません。
 
 > [!NOTE]
-> この文書はPhase 5で実装済みの固定上限方式を記録します。100件・50 MiB・100 MiBの固定上限を廃止する次期設計は[Phase 6: 全選択候補のディスクストリーミングZIP](large-zip-export.md)と[ADR-0005](adr/0005-stream-large-zip-to-opfs.md)を参照してください。Phase 6が実装・検証されるまでは本書の上限が有効です。
+> この文書はPhase 5で実装した固定上限方式の履歴です。`0.5.0`以降の現行仕様は、固定上限を廃止した[Phase 6: 全選択候補のディスクストリーミングZIP](large-zip-export.md)と[ADR-0005](adr/0005-stream-large-zip-to-opfs.md)を参照してください。
 
 - メディア ZIP: ユーザーが選択した Discord 添付を一つにまとめた保存物
 - 配布 ZIP: 拡張機能を unpacked install するためのリリース成果物

@@ -4,8 +4,8 @@ import { isRecord } from './messages';
 const ZIP_ERROR_CODES = new Set([
   'FETCH_FAILED',
   'INVALID_REDIRECT',
-  'ITEM_TOO_LARGE',
-  'BATCH_TOO_LARGE',
+  'STORAGE_QUOTA_EXCEEDED',
+  'TEMP_WRITE_FAILED',
   'ZIP_FAILED',
   'SAVE_FAILED',
   'CONTEXT_LOST',
@@ -29,6 +29,7 @@ export type ZipBackgroundEvent =
       phase: 'fetching' | 'packing';
       completedItems: number;
       processedBytes: number;
+      outputBytes: number;
       currentFilename?: string;
     }
   | {
@@ -37,6 +38,7 @@ export type ZipBackgroundEvent =
       jobId: string;
       blobUrl: string;
       processedBytes: number;
+      outputBytes: number;
     }
   | {
       target: 'background';
@@ -67,11 +69,16 @@ export function isZipBackgroundEvent(value: unknown): value is ZipBackgroundEven
       (value.phase === 'fetching' || value.phase === 'packing') &&
       typeof value.completedItems === 'number' &&
       typeof value.processedBytes === 'number' &&
+      typeof value.outputBytes === 'number' &&
       (value.currentFilename === undefined || typeof value.currentFilename === 'string')
     );
   }
   if (value.type === 'ZIP_READY') {
-    return typeof value.blobUrl === 'string' && typeof value.processedBytes === 'number';
+    return (
+      typeof value.blobUrl === 'string' &&
+      typeof value.processedBytes === 'number' &&
+      typeof value.outputBytes === 'number'
+    );
   }
   if (value.type === 'ZIP_FAILED') {
     return (
