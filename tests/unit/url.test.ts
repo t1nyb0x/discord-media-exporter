@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   attachmentIdentity,
+  discordImageThumbnailUrl,
   inferMediaKind,
   isDiscordChannelUrl,
   normalizeDiscordAttachmentUrl,
@@ -50,5 +51,19 @@ describe('Discord URL validation', () => {
     expect(inferMediaKind(new URL('https://cdn.discordapp.com/attachments/1/2/archive.zip'))).toBe(
       'file',
     );
+  });
+
+  it('creates a bounded Discord media-proxy thumbnail URL for images only', () => {
+    expect(
+      discordImageThumbnailUrl(
+        'https://cdn.discordapp.com/attachments/1/2/photo.png?ex=abc&is=def&hm=ghi',
+      ),
+    ).toBe(
+      'https://media.discordapp.net/attachments/1/2/photo.png?ex=abc&is=def&hm=ghi&width=80&height=80',
+    );
+    expect(
+      discordImageThumbnailUrl('https://cdn.discordapp.com/attachments/1/2/movie.mp4'),
+    ).toBeNull();
+    expect(discordImageThumbnailUrl('https://example.com/attachments/1/2/photo.png')).toBeNull();
   });
 });

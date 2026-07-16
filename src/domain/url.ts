@@ -2,7 +2,9 @@ import type { MediaKind } from './media';
 
 const DISCORD_CHANNEL_HOST = 'discord.com';
 const ALLOWED_ATTACHMENT_HOSTS = new Set(['cdn.discordapp.com', 'media.discordapp.net']);
+const DISCORD_MEDIA_HOST = 'media.discordapp.net';
 const ATTACHMENT_PATH = /^\/attachments\/\d+\/\d+\/[^/]+$/;
+const CANDIDATE_THUMBNAIL_SIZE = 80;
 
 const IMAGE_EXTENSIONS = new Set(['avif', 'bmp', 'gif', 'jpeg', 'jpg', 'png', 'svg', 'webp']);
 const VIDEO_EXTENSIONS = new Set(['avi', 'm4v', 'mkv', 'mov', 'mp4', 'webm']);
@@ -62,4 +64,15 @@ export function inferMediaKind(url: URL): MediaKind {
 /** Reports whether an input is a supported Discord CDN attachment URL. */
 export function isAllowedCandidateUrl(input: string): boolean {
   return normalizeDiscordAttachmentUrl(input) !== null;
+}
+
+/** Creates a bounded Discord media-proxy URL for an allowlisted image attachment. */
+export function discordImageThumbnailUrl(input: string): string | null {
+  const url = normalizeDiscordAttachmentUrl(input);
+  if (url === null || inferMediaKind(url) !== 'image') return null;
+
+  url.hostname = DISCORD_MEDIA_HOST;
+  url.searchParams.set('width', String(CANDIDATE_THUMBNAIL_SIZE));
+  url.searchParams.set('height', String(CANDIDATE_THUMBNAIL_SIZE));
+  return url.toString();
 }
