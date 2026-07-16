@@ -68,6 +68,7 @@ pnpm release:prepare
 - [技術設計](docs/architecture.md)
 - [セキュリティとプライバシー](docs/security-and-privacy.md)
 - [開発ガイド](docs/development.md)
+- [コントリビューションガイド](docs/contributing.md)
 - [ロードマップ](docs/roadmap.md)
 - [0.6.0リリースノート](docs/release-notes-0.6.0.md)
 - [ADR一覧](docs/adr/)
