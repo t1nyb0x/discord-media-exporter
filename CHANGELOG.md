@@ -2,6 +2,24 @@
 
 このプロジェクトの利用者向け変更を記録します。バージョンは Semantic Versioning に従います。
 
+## [0.7.0] - 2026-07-17
+
+### Added
+
+- popupの候補一覧へ、検証済みDiscord画像添付のサムネイルを表示
+- サムネイルの遅延読み込み、非同期decode、読み込み失敗時の種類アイコンへのフォールバック
+
+### Security
+
+- サムネイルURLを既存allowlistで検証し、80×80のDiscord media proxy URLだけを生成
+- extension pageの画像通信先をCSPで`media.discordapp.net`へ限定
+- 恒久的host permission、外部依存、サムネイルの永続保存を追加しない
+- 動画本体はプレビュー目的で読み込まず、動画とその他ファイルは種類アイコンを維持
+
+### Known limitations
+
+- Discord CDN URLの有効期限切れや取得失敗時はサムネイルを表示できない
+
 ## [0.6.1] - 2026-07-17
 
 ### Changed

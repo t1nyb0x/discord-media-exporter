@@ -9,7 +9,7 @@ import type {
   ZipExportState,
 } from '../../src/domain/media';
 import { MAX_COLLECTED_CANDIDATES } from '../../src/domain/download-manager';
-import { discordChannelScope } from '../../src/domain/url';
+import { discordChannelScope, discordImageThumbnailUrl } from '../../src/domain/url';
 import { isValidMediaCandidate } from '../../src/domain/validation';
 import { isRecord, type ExtensionRequest, type ExtensionResponse } from '../../src/shared/messages';
 import { ZIP_HOST_ORIGINS } from '../../src/shared/permissions';
@@ -391,6 +391,31 @@ function createCandidateListItem(candidate: MediaCandidate): HTMLLIElement {
   icon.textContent = mediaKindLabel(candidate.kind).slice(0, 1);
   icon.setAttribute('aria-hidden', 'true');
 
+  const preview = document.createElement('span');
+  preview.className = 'candidate-preview';
+  preview.append(icon);
+
+  const thumbnailUrl = discordImageThumbnailUrl(candidate.sourceUrl);
+  if (thumbnailUrl !== null) {
+    const thumbnail = document.createElement('img');
+    thumbnail.className = 'media-thumbnail media-thumbnail-loading';
+    thumbnail.alt = '';
+    thumbnail.loading = 'lazy';
+    thumbnail.decoding = 'async';
+    thumbnail.draggable = false;
+    thumbnail.referrerPolicy = 'no-referrer';
+    thumbnail.width = 36;
+    thumbnail.height = 36;
+    thumbnail.addEventListener(
+      'load',
+      () => thumbnail.classList.remove('media-thumbnail-loading'),
+      { once: true },
+    );
+    thumbnail.addEventListener('error', () => thumbnail.remove(), { once: true });
+    thumbnail.src = thumbnailUrl;
+    preview.append(thumbnail);
+  }
+
   const name = document.createElement('span');
   name.className = 'candidate-name';
   name.textContent = candidate.displayName;
@@ -404,7 +429,7 @@ function createCandidateListItem(candidate: MediaCandidate): HTMLLIElement {
 
   const label = document.createElement('label');
   label.className = 'candidate-label';
-  label.append(checkbox, icon, text);
+  label.append(checkbox, preview, text);
   item.append(label);
   return item;
 }
