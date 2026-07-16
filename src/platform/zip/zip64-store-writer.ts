@@ -1,6 +1,9 @@
 export interface ZipArchiveSink {
+  /** Appends one archive byte chunk. */
   write(chunk: Uint8Array): Promise<void>;
+  /** Finalizes the sink and returns its ZIP Blob. */
   close(): Promise<Blob>;
+  /** Aborts output and releases temporary resources. */
   abort(): Promise<void>;
 }
 
@@ -30,6 +33,7 @@ const DOS_DATE = 0x0021;
 const UINT16_MAX = 0xffff;
 const UINT32_MAX = 0xffffffff;
 
+/** Streams uncompressed ZIP64 entries to a caller-provided archive sink. */
 export class Zip64StoreWriter {
   private readonly entries: Zip64CentralDirectoryEntry[] = [];
   private offset: bigint;
@@ -44,6 +48,7 @@ export class Zip64StoreWriter {
     if (this.offset < 0n) throw new Error('ZIP initial offset must not be negative.');
   }
 
+  /** Starts one sequential ZIP entry and returns its streaming writer. */
   async startEntry(filename: string): Promise<Zip64EntryWriter> {
     if (this.finished) throw new Error('ZIP writer is already finished.');
     if (this.activeEntry) throw new Error('Finish the current ZIP entry before starting another.');
@@ -67,6 +72,7 @@ export class Zip64StoreWriter {
     );
   }
 
+  /** Writes the central directory, closes the sink, and returns final size metadata. */
   async finalize(): Promise<{ blob: Blob; outputBytes: bigint }> {
     if (this.finished) throw new Error('ZIP writer is already finished.');
     if (this.activeEntry) throw new Error('The current ZIP entry is not finished.');
@@ -93,22 +99,26 @@ export class Zip64StoreWriter {
     return { blob, outputBytes };
   }
 
+  /** Aborts the writer and releases sink resources. */
   async abort(): Promise<void> {
     this.finished = true;
     this.activeEntry = false;
     await this.sink.abort();
   }
 
+  /** Returns the number of archive bytes written so far. */
   getOutputBytes(): bigint {
     return this.offset;
   }
 
+  /** Writes one chunk and advances the ZIP64 output offset. */
   private async write(chunk: Uint8Array): Promise<void> {
     await this.sink.write(chunk);
     this.offset += BigInt(chunk.byteLength);
   }
 }
 
+/** Streams one ZIP entry while calculating its CRC32 and uncompressed size. */
 export class Zip64EntryWriter {
   private crc = 0xffffffff;
   private size = 0n;
@@ -119,6 +129,7 @@ export class Zip64EntryWriter {
     private readonly finishEntry: (crc32: number, size: bigint) => Promise<void>,
   ) {}
 
+  /** Appends one non-empty data chunk to the current ZIP entry. */
   async write(chunk: Uint8Array): Promise<void> {
     if (this.finished) throw new Error('ZIP entry is already finished.');
     if (chunk.byteLength === 0) return;
@@ -127,6 +138,7 @@ export class Zip64EntryWriter {
     await this.writeChunk(chunk);
   }
 
+  /** Finalizes the current ZIP entry and writes its data descriptor. */
   async close(): Promise<void> {
     if (this.finished) throw new Error('ZIP entry is already finished.');
     this.finished = true;
@@ -134,26 +146,31 @@ export class Zip64EntryWriter {
   }
 }
 
+/** In-memory sink used for bounded tests and small direct ZIP builds. */
 export class MemoryZipArchiveSink implements ZipArchiveSink {
   private readonly chunks: ArrayBuffer[] = [];
   private aborted = false;
 
+  /** Copies one output chunk into memory. */
   async write(chunk: Uint8Array): Promise<void> {
     if (this.aborted) throw new Error('Archive sink was aborted.');
     this.chunks.push(Uint8Array.from(chunk).buffer);
   }
 
+  /** Combines buffered chunks into a ZIP Blob. */
   async close(): Promise<Blob> {
     if (this.aborted) throw new Error('Archive sink was aborted.');
     return new Blob(this.chunks, { type: 'application/zip' });
   }
 
+  /** Drops buffered data and prevents further writes. */
   async abort(): Promise<void> {
     this.aborted = true;
     this.chunks.length = 0;
   }
 }
 
+/** Encodes a ZIP64 local file header for a streamed entry. */
 function createLocalFileHeader(filename: Uint8Array): Uint8Array {
   const extraLength = 20;
   const bytes = new Uint8Array(30 + filename.length + extraLength);
@@ -178,6 +195,7 @@ function createLocalFileHeader(filename: Uint8Array): Uint8Array {
   return bytes;
 }
 
+/** Encodes a ZIP64 data descriptor for a completed entry. */
 function createZip64DataDescriptor(crc32: number, size: bigint): Uint8Array {
   const bytes = new Uint8Array(24);
   const view = dataView(bytes);
@@ -188,6 +206,7 @@ function createZip64DataDescriptor(crc32: number, size: bigint): Uint8Array {
   return bytes;
 }
 
+/** Encodes one ZIP64 central-directory record. */
 export function encodeZip64CentralDirectoryEntry(entry: Zip64CentralDirectoryEntry): Uint8Array {
   const extraLength = 28;
   const bytes = new Uint8Array(46 + entry.filename.length + extraLength);
@@ -216,6 +235,7 @@ export function encodeZip64CentralDirectoryEntry(entry: Zip64CentralDirectoryEnt
   return bytes;
 }
 
+/** Encodes the ZIP64 end-of-central-directory record. */
 function createZip64EndRecord(
   entryCount: bigint,
   centralDirectorySize: bigint,
@@ -234,6 +254,7 @@ function createZip64EndRecord(
   return bytes;
 }
 
+/** Encodes the locator that points to the ZIP64 end record. */
 function createZip64Locator(zip64EndOffset: bigint): Uint8Array {
   const bytes = new Uint8Array(20);
   const view = dataView(bytes);
@@ -243,6 +264,7 @@ function createZip64Locator(zip64EndOffset: bigint): Uint8Array {
   return bytes;
 }
 
+/** Encodes the compatibility end-of-central-directory record. */
 function createEndOfCentralDirectory(): Uint8Array {
   const bytes = new Uint8Array(22);
   const view = dataView(bytes);
@@ -254,6 +276,7 @@ function createEndOfCentralDirectory(): Uint8Array {
   return bytes;
 }
 
+/** Updates an in-progress CRC32 value with one byte chunk. */
 function updateCrc32(current: number, bytes: Uint8Array): number {
   let crc = current;
   for (let index = 0; index < bytes.length; index += 1) {
@@ -262,6 +285,7 @@ function updateCrc32(current: number, bytes: Uint8Array): number {
   return crc;
 }
 
+/** Creates a DataView over exactly the supplied Uint8Array range. */
 function dataView(bytes: Uint8Array): DataView {
   return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 }

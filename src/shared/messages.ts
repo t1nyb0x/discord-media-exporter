@@ -26,6 +26,7 @@ export type ExtensionResponse =
   | { ok: true; type: 'ZIP_EXPORT_STATUS'; state: ZipExportState }
   | { ok: false; error: string };
 
+/** Validates an untrusted extension request before background dispatch. */
 export function isExtensionRequest(value: unknown): value is ExtensionRequest {
   if (!isRecord(value) || typeof value.type !== 'string') return false;
 
@@ -55,6 +56,7 @@ export function isExtensionRequest(value: unknown): value is ExtensionRequest {
   }
 }
 
+/** Narrows an unknown value to a string-keyed object. */
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }

@@ -5,6 +5,7 @@ const TEMP_ARCHIVE_SUFFIX = '.zip.part';
 const OPFS_WRITE_BUFFER_BYTES = 1024 * 1024;
 
 export interface TemporaryZipArchiveSink extends ZipArchiveSink {
+  /** Removes the temporary OPFS file after use. */
   remove(): Promise<void>;
 }
 
@@ -13,6 +14,7 @@ export interface OrphanedArchiveCleanupResult {
   failed: number;
 }
 
+/** Creates a buffered temporary ZIP sink backed by OPFS. */
 export async function createOpfsArchiveSink(jobId: string): Promise<TemporaryZipArchiveSink> {
   const root = await navigator.storage.getDirectory();
   const filename = temporaryArchiveFilename(jobId);
@@ -53,6 +55,7 @@ export async function createOpfsArchiveSink(jobId: string): Promise<TemporaryZip
     remove,
   };
 
+  /** Removes the temporary archive once, tolerating an already-missing file. */
   async function remove(): Promise<void> {
     if (removed) return;
     removed = true;
@@ -62,6 +65,7 @@ export async function createOpfsArchiveSink(jobId: string): Promise<TemporaryZip
     });
   }
 
+  /** Coalesces buffered chunks into one bounded OPFS write. */
   async function flush(): Promise<void> {
     if (bufferedBytes === 0) return;
     const output = new Uint8Array(bufferedBytes);
@@ -76,6 +80,7 @@ export async function createOpfsArchiveSink(jobId: string): Promise<TemporaryZip
   }
 }
 
+/** Removes leftover temporary archives from interrupted ZIP jobs. */
 export async function cleanupOrphanedOpfsArchives(): Promise<OrphanedArchiveCleanupResult> {
   const root = await navigator.storage.getDirectory();
   const result = { removed: 0, failed: 0 };
@@ -91,6 +96,7 @@ export async function cleanupOrphanedOpfsArchives(): Promise<OrphanedArchiveClea
   return result;
 }
 
+/** Creates a bounded, filesystem-safe temporary archive filename for a job. */
 function temporaryArchiveFilename(jobId: string): string {
   const safeJobId = jobId.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 80);
   if (safeJobId.length === 0) throw new Error('ZIP job ID is invalid.');

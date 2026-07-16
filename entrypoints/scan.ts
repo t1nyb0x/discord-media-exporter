@@ -20,6 +20,7 @@ declare global {
 }
 
 export default defineUnlistedScript({
+  /** Starts or reuses the page-scoped visible-media collector. */
   main() {
     const controller = getCollectorController();
     if (controller.collector?.isActive()) {
@@ -74,6 +75,7 @@ export default defineUnlistedScript({
   },
 });
 
+/** Returns the page-global collector controller and registers its message listener once. */
 function getCollectorController(): CollectorController {
   globalThis.__discordMediaExporterCollector__ ??= {
     collector: null,
@@ -101,6 +103,7 @@ function getCollectorController(): CollectorController {
   return controller;
 }
 
+/** Creates guided controls wired to the active page collector. */
 function createControls(
   controller: CollectorController,
   collector: VisibleMediaCollector,

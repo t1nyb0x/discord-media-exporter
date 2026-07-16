@@ -7,6 +7,7 @@ export interface CollectorResponse {
   active: boolean;
 }
 
+/** Validates a popup-to-collector control message. */
 export function isCollectorRequest(value: unknown): value is CollectorRequest {
   if (typeof value !== 'object' || value === null || !('type' in value)) return false;
   if (value.type === 'GET_MEDIA_COLLECTOR_STATUS' || value.type === 'STOP_MEDIA_COLLECTOR') {

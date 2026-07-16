@@ -21,10 +21,12 @@ const OFFSCREEN_PATH = 'offscreen.html';
 const EXTENSION_ORIGIN = `chrome-extension://${browser.runtime.id}`;
 const OFFSCREEN_URL = `${EXTENSION_ORIGIN}/${OFFSCREEN_PATH}`;
 
+/** Coordinates persisted ZIP export state across background and offscreen contexts. */
 class ChromeZipExportManager {
   private state = createIdleZipState();
   private initialization: Promise<void> | undefined;
 
+  /** Starts a new ZIP job after persisting its initial state. */
   async start(candidates: MediaCandidate[]): Promise<ZipExportState> {
     await this.ensureInitialized();
     if (isActiveZipStatus(this.state.status)) throw new Error('ZIP出力は既に進行中です。');
@@ -58,6 +60,7 @@ class ChromeZipExportManager {
     return this.cloneState();
   }
 
+  /** Cancels active ZIP creation or its final browser download. */
   async cancel(): Promise<ZipExportState> {
     await this.ensureInitialized();
     if (!isActiveZipStatus(this.state.status) || this.state.jobId === undefined) {
@@ -82,16 +85,19 @@ class ChromeZipExportManager {
     return this.cloneState();
   }
 
+  /** Returns a detached snapshot of the current ZIP export state. */
   async getState(): Promise<ZipExportState> {
     await this.ensureInitialized();
     return this.cloneState();
   }
 
+  /** Reports whether a ZIP export has unfinished work. */
   async isActive(): Promise<boolean> {
     await this.ensureInitialized();
     return isActiveZipStatus(this.state.status);
   }
 
+  /** Applies a validated progress, ready, or failure event from the offscreen context. */
   async handleEvent(event: ZipBackgroundEvent): Promise<void> {
     await this.ensureInitialized();
     if (event.jobId !== this.state.jobId || !isActiveZipStatus(this.state.status)) return;
@@ -123,6 +129,7 @@ class ChromeZipExportManager {
     }
   }
 
+  /** Applies a terminal browser download event for the generated archive. */
   async handleDownloadChanged(delta: DownloadDelta): Promise<void> {
     await this.ensureInitialized();
     if (this.state.status !== 'saving' || delta.id !== this.state.downloadId) return;
@@ -132,6 +139,7 @@ class ChromeZipExportManager {
     await this.finishDownload(status, delta.error?.current);
   }
 
+  /** Starts the browser download for a completed extension-owned ZIP Blob URL. */
   private async saveZip(
     blobUrl: string,
     processedBytes: number,
@@ -165,11 +173,13 @@ class ChromeZipExportManager {
     }
   }
 
+  /** Restores persisted state once before manager operations. */
   private ensureInitialized(): Promise<void> {
     this.initialization ??= this.restore();
     return this.initialization;
   }
 
+  /** Restores state and reconciles interrupted offscreen or download work. */
   private async restore(): Promise<void> {
     const stored = await browser.storage.session.get(ZIP_STATE_KEY);
     if (isZipExportState(stored[ZIP_STATE_KEY])) {
@@ -200,6 +210,7 @@ class ChromeZipExportManager {
     }
   }
 
+  /** Marks the current job failed, persists it, and releases temporary resources. */
   private async setFailed(code: ZipExportErrorCode, filename?: string): Promise<void> {
     const jobId = this.state.jobId;
     this.state.status = 'failed';
@@ -209,6 +220,7 @@ class ChromeZipExportManager {
     if (jobId !== undefined) await cleanupJob(jobId);
   }
 
+  /** Finalizes archive download state and releases temporary resources. */
   private async finishDownload(status: 'complete' | 'interrupted', reason?: string): Promise<void> {
     const jobId = this.state.jobId;
     if (status === 'complete') {
@@ -223,10 +235,12 @@ class ChromeZipExportManager {
     if (jobId !== undefined) await cleanupJob(jobId);
   }
 
+  /** Persists a detached ZIP export state snapshot. */
   private async persist(): Promise<void> {
     await browser.storage.session.set({ [ZIP_STATE_KEY]: this.cloneState() });
   }
 
+  /** Returns a detached copy of the current ZIP export state. */
   private cloneState(): ZipExportState {
     return { ...this.state };
   }
@@ -234,30 +248,37 @@ class ChromeZipExportManager {
 
 const manager = new ChromeZipExportManager();
 
+/** Starts a ZIP export for previously validated media candidates. */
 export function startZipExport(candidates: MediaCandidate[]): Promise<ZipExportState> {
   return manager.start(candidates);
 }
 
+/** Cancels the active ZIP export if one exists. */
 export function cancelZipExport(): Promise<ZipExportState> {
   return manager.cancel();
 }
 
+/** Returns the latest persisted ZIP export state. */
 export function getZipExportState(): Promise<ZipExportState> {
   return manager.getState();
 }
 
+/** Reports whether ZIP creation or saving is active. */
 export function hasActiveZipExport(): Promise<boolean> {
   return manager.isActive();
 }
 
+/** Forwards a validated offscreen ZIP event to the manager. */
 export function handleZipBackgroundEvent(event: ZipBackgroundEvent): Promise<void> {
   return manager.handleEvent(event);
 }
 
+/** Forwards Chrome download changes for the generated ZIP archive. */
 export function handleZipDownloadChanged(delta: DownloadDelta): Promise<void> {
   return manager.handleDownloadChanged(delta);
 }
 
+/** Creates the single offscreen ZIP document when it is not already present. */
 async function ensureOffscreenDocument(): Promise<void> {
   if (await hasOffscreenDocument()) return;
   await browser.offscreen.createDocument({
@@ -267,6 +288,7 @@ async function ensureOffscreenDocument(): Promise<void> {
   });
 }
 
+/** Reports whether the extension ZIP offscreen document currently exists. */
 async function hasOffscreenDocument(): Promise<boolean> {
   const contexts = await browser.runtime.getContexts({
     contextTypes: ['OFFSCREEN_DOCUMENT'],
@@ -275,6 +297,7 @@ async function hasOffscreenDocument(): Promise<boolean> {
   return contexts.length > 0;
 }
 
+/** Revokes job artifacts, closes offscreen state, and releases optional CDN access. */
 async function cleanupJob(jobId: string): Promise<void> {
   if (await hasOffscreenDocument().catch(() => false)) {
     await sendOffscreen({ target: 'offscreen', type: 'REVOKE_ZIP', jobId }).catch(() => undefined);
@@ -283,14 +306,17 @@ async function cleanupJob(jobId: string): Promise<void> {
   await browser.permissions.remove({ origins: [...ZIP_HOST_ORIGINS] }).catch(() => undefined);
 }
 
+/** Sends a typed ZIP request to the extension offscreen context. */
 function sendOffscreen(request: OffscreenZipRequest): Promise<unknown> {
   return browser.runtime.sendMessage(request);
 }
 
+/** Reports whether a Blob URL belongs to this extension origin. */
 function isExtensionBlobUrl(value: string): boolean {
   return value.startsWith(`blob:${EXTENSION_ORIGIN}/`);
 }
 
+/** Validates the minimum persisted fields required to restore ZIP export state. */
 function isZipExportState(value: unknown): value is ZipExportState {
   if (!isRecord(value)) return false;
   return (
@@ -303,10 +329,12 @@ function isZipExportState(value: unknown): value is ZipExportState {
   );
 }
 
+/** Restricts a number to an inclusive range. */
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+/** Maps a Chrome download interruption reason to a safe ZIP export error code. */
 function downloadFailureCode(reason: string | undefined): ZipExportErrorCode {
   return reason === 'FILE_NO_SPACE' ? 'DOWNLOAD_NO_SPACE' : 'SAVE_FAILED';
 }

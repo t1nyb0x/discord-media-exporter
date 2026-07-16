@@ -10,8 +10,11 @@ export type GuidedScrollStepResult =
   { status: 'moved'; reachedStart: boolean } | { status: 'at_start' } | { status: 'unavailable' };
 
 interface GuidedCollectionControlOptions {
+  /** Performs one explicit backward-scroll step. */
   onStep(): GuidedScrollStepResult;
+  /** Reveals supported spoilers in the current visible area. */
   onRevealSpoilers(): VisibleSpoilerRevealResult;
+  /** Stops the owning collection session. */
   onStop(): void;
 }
 
@@ -20,6 +23,7 @@ export interface VisibleSpoilerRevealResult {
   failed: number;
 }
 
+/** Moves the message container toward older posts by at most one visible page. */
 export function scrollOnePageBackward(
   documentObject: Document,
   windowObject: Window,
@@ -37,6 +41,7 @@ export function scrollOnePageBackward(
   return { status: 'moved', reachedStart: current === 0 };
 }
 
+/** Reveals only supported spoiler controls currently visible in the message viewport. */
 export function revealVisibleSpoilers(
   documentObject: Document,
   windowObject: Window,
@@ -72,6 +77,7 @@ export function revealVisibleSpoilers(
   return { revealed, failed };
 }
 
+/** Renders and manages the explicit guided-collection controls on the Discord page. */
 export class GuidedCollectionControls {
   private readonly host: HTMLDivElement;
   private readonly stepButton: HTMLButtonElement;
@@ -162,6 +168,7 @@ export class GuidedCollectionControls {
     documentObject.body.append(this.host);
   }
 
+  /** Updates collection progress and disables collection actions at the hard limit. */
   setCollectedCount(count: number): void {
     if (count >= COLLECTION_LIMIT) {
       this.limitReached = true;
@@ -176,6 +183,7 @@ export class GuidedCollectionControls {
     this.status.textContent = `${count}件を収集中です。`;
   }
 
+  /** Detaches event listeners and removes the injected control host. */
   remove(): void {
     this.stepButton.removeEventListener('click', this.handleStep);
     this.revealButton.removeEventListener('click', this.handleReveal);
@@ -183,6 +191,7 @@ export class GuidedCollectionControls {
     this.host.remove();
   }
 
+  /** Handles one explicit backward-scroll action. */
   private readonly handleStep = (): void => {
     if (this.limitReached) return;
     this.stepButton.disabled = true;
@@ -199,10 +208,12 @@ export class GuidedCollectionControls {
     this.stepButton.disabled = false;
   };
 
+  /** Handles the explicit request to stop guided collection. */
   private readonly handleStop = (): void => {
     this.options.onStop();
   };
 
+  /** Handles one explicit visible-spoiler reveal action. */
   private readonly handleReveal = (): void => {
     if (this.limitReached) return;
     this.revealButton.disabled = true;
@@ -218,6 +229,7 @@ export class GuidedCollectionControls {
   };
 }
 
+/** Returns the visible portion of the Discord message viewport. */
 function visibleMessageRect(messageViewport: Element, windowObject: Window): RectLike | null {
   return intersectRects(messageViewport.getBoundingClientRect(), {
     top: 0,
@@ -229,6 +241,7 @@ function visibleMessageRect(messageViewport: Element, windowObject: Window): Rec
   });
 }
 
+/** Reports whether an accessible control label identifies a spoiler action. */
 function isSpoilerControl(element: Element): boolean {
   const label = element.getAttribute('aria-label')?.normalize('NFKC').toLocaleLowerCase() ?? '';
   return label.includes('spoiler') || label.includes('スポイラー') || label.includes('ネタバレ');

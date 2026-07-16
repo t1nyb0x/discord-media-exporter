@@ -1,5 +1,6 @@
 const MESSAGE_VIEWPORT_SELECTORS = ['[data-list-id="chat-messages"]', 'main [role="log"]'] as const;
 
+/** Finds the narrowly scoped Discord message viewport using semantic selectors. */
 export function findMessageViewport(documentObject: Document): Element | null {
   for (const selector of MESSAGE_VIEWPORT_SELECTORS) {
     const element = documentObject.querySelector(selector);
@@ -8,6 +9,7 @@ export function findMessageViewport(documentObject: Document): Element | null {
   return null;
 }
 
+/** Finds the nearest scrollable container that owns the message viewport. */
 export function findMessageScrollContainer(
   documentObject: Document,
   windowObject: Window,
@@ -27,10 +29,12 @@ export function findMessageScrollContainer(
   return fallback;
 }
 
+/** Reports whether an element has content that can scroll vertically. */
 function hasScrollableDimensions(element: HTMLElement): boolean {
   return element.scrollHeight > element.clientHeight && element.clientHeight > 0;
 }
 
+/** Reports whether computed styles permit user-driven vertical scrolling. */
 function hasScrollingOverflow(element: HTMLElement, windowObject: Window): boolean {
   const overflowY = windowObject.getComputedStyle(element).overflowY;
   return ['auto', 'scroll', 'overlay'].includes(overflowY);

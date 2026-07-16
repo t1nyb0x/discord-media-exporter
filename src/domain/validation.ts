@@ -7,6 +7,7 @@ import { isRecord } from '../shared/messages';
 const MEDIA_KINDS = new Set(['image', 'video', 'file']);
 const SOURCES = new Set(['anchor', 'image', 'video']);
 
+/** Validates an untrusted value as a canonical media candidate. */
 export function isValidMediaCandidate(value: unknown): value is MediaCandidate {
   if (!isRecord(value)) return false;
   if (typeof value.id !== 'string' || !/^media-[0-9a-f]{8}$/.test(value.id)) return false;

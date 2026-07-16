@@ -5,6 +5,7 @@ const TRAILING_DOTS_OR_SPACES = /[. ]+$/;
 const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
 const MAX_FILENAME_LENGTH = 180;
 
+/** Returns the decoded final path segment of a media URL. */
 export function filenameFromUrl(url: URL): string {
   const encoded = url.pathname.split('/').at(-1) ?? '';
   try {
@@ -14,6 +15,7 @@ export function filenameFromUrl(url: URL): string {
   }
 }
 
+/** Converts an arbitrary label into a cross-platform safe filename. */
 export function sanitizeFilename(input: string, fallback = 'discord-media'): string {
   let value = input
     .normalize('NFC')
