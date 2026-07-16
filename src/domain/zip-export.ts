@@ -14,6 +14,7 @@ export type ZipExportErrorCode =
   | 'TEMP_WRITE_FAILED'
   | 'ZIP_FAILED'
   | 'SAVE_FAILED'
+  | 'DOWNLOAD_NO_SPACE'
   | 'CONTEXT_LOST';
 
 export function prepareZipEntries(candidates: MediaCandidate[]): ZipEntryCandidate[] {
@@ -69,6 +70,8 @@ export function zipExportErrorMessage(code: ZipExportErrorCode, filename?: strin
       return 'ZIPを生成できませんでした。';
     case 'SAVE_FAILED':
       return '生成したZIPの保存を開始できませんでした。';
+    case 'DOWNLOAD_NO_SPACE':
+      return '保存先ディスクの空き容量が不足しているため、ZIPを保存できませんでした。';
     case 'CONTEXT_LOST':
       return 'ZIP生成状態を復元できませんでした。もう一度実行してください。';
   }

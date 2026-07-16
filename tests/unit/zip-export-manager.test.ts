@@ -141,6 +141,60 @@ describe('ChromeZipExportManager', () => {
     });
     expect(browserMocks.removePermissions).toHaveBeenCalledOnce();
   });
+
+  it('reports an interrupted download with FILE_NO_SPACE as disk exhaustion', async () => {
+    const manager = await import('../../src/platform/chrome/zip-export-manager');
+    const started = await manager.startZipExport([createCandidate()]);
+    await manager.handleZipBackgroundEvent({
+      target: 'background',
+      type: 'ZIP_READY',
+      jobId: started.jobId!,
+      blobUrl: 'blob:chrome-extension://test-extension-id/archive',
+      processedBytes: 12,
+      outputBytes: 20,
+    });
+
+    await manager.handleZipDownloadChanged({
+      id: 42,
+      state: { current: 'interrupted' },
+      error: { current: 'FILE_NO_SPACE' },
+    });
+
+    expect(await manager.getZipExportState()).toMatchObject({
+      status: 'failed',
+      error: expect.stringContaining('保存先ディスクの空き容量'),
+    });
+    expect(browserMocks.removePermissions).toHaveBeenCalledOnce();
+    expect(browserMocks.closeDocument).toHaveBeenCalledOnce();
+  });
+
+  it('restores an interrupted FILE_NO_SPACE download as disk exhaustion', async () => {
+    browserMocks.offscreenOpen = true;
+    browserMocks.stored = {
+      zipExportState: {
+        status: 'saving',
+        jobId: 'job-restored',
+        archiveFilename: 'discord-media.zip',
+        totalItems: 2,
+        completedItems: 2,
+        processedBytes: 12,
+        outputBytes: 20,
+        downloadId: 42,
+      },
+    };
+    browserMocks.searchDownloads.mockResolvedValue([
+      { id: 42, state: 'interrupted', error: 'FILE_NO_SPACE' },
+    ]);
+
+    const manager = await import('../../src/platform/chrome/zip-export-manager');
+
+    expect(await manager.getZipExportState()).toMatchObject({
+      status: 'failed',
+      error: expect.stringContaining('保存先ディスクの空き容量'),
+    });
+    expect(browserMocks.removePermissions).toHaveBeenCalledOnce();
+    expect(browserMocks.closeDocument).toHaveBeenCalledOnce();
+  });
 });
 
 function createCandidate(): MediaCandidate {

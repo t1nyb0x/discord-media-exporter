@@ -1,6 +1,7 @@
 import { strFromU8, strToU8, unzipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import {
+  encodeZip64CentralDirectoryEntry,
   MemoryZipArchiveSink,
   Zip64StoreWriter,
   type ZipArchiveSink,
@@ -71,6 +72,74 @@ describe('Zip64StoreWriter', () => {
     await entry.close();
     await writer.finalize();
   });
+
+  it.each([0xffffffffn, 0x100000000n])(
+    'encodes the synthetic %s-byte entry size as a ZIP64 64-bit value',
+    (size) => {
+      const record = encodeZip64CentralDirectoryEntry({
+        filename: strToU8('large.bin'),
+        crc32: 0x12345678,
+        size,
+        localHeaderOffset: 0x100000000n,
+      });
+      const view = new DataView(record.buffer, record.byteOffset, record.byteLength);
+      const filenameLength = view.getUint16(28, true);
+      const extraOffset = 46 + filenameLength;
+
+      expect(view.getUint32(20, true)).toBe(0xffffffff);
+      expect(view.getUint32(24, true)).toBe(0xffffffff);
+      expect(view.getUint32(42, true)).toBe(0xffffffff);
+      expect(view.getBigUint64(extraOffset + 4, true)).toBe(size);
+      expect(view.getBigUint64(extraOffset + 12, true)).toBe(size);
+      expect(view.getBigUint64(extraOffset + 20, true)).toBe(0x100000000n);
+    },
+  );
+
+  it('keeps offsets above 4 GiB in ZIP64 central and locator records', async () => {
+    const initialOffset = 0x100000000n;
+    const writer = new Zip64StoreWriter(new MemoryZipArchiveSink(), { initialOffset });
+    const entry = await writer.startEntry('offset.bin');
+    await entry.close();
+    const result = await writer.finalize();
+    const bytes = new Uint8Array(await result.blob.arrayBuffer());
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const centralOffset = findSignature(bytes, 0x02014b50);
+    const filenameLength = view.getUint16(centralOffset + 28, true);
+    const centralExtraOffset = centralOffset + 46 + filenameLength;
+    const locatorOffset = findSignature(bytes, 0x07064b50);
+
+    expect(view.getBigUint64(centralExtraOffset + 20, true)).toBe(initialOffset);
+    expect(view.getBigUint64(locatorOffset + 8, true)).toBeGreaterThan(initialOffset);
+    expect(result.outputBytes).toBeGreaterThan(initialOffset);
+  });
+
+  it.each([65535, 65536])(
+    'records %i entries in the ZIP64 end record',
+    async (entryCount) => {
+      let zip64EndRecord: Uint8Array | undefined;
+      const sink: ZipArchiveSink = {
+        async write(chunk) {
+          if (signature(chunk) === 0x06064b50) zip64EndRecord = Uint8Array.from(chunk);
+        },
+        async close() {
+          return new Blob();
+        },
+        async abort() {},
+      };
+      const writer = new Zip64StoreWriter(sink);
+      for (let index = 0; index < entryCount; index += 1) {
+        const entry = await writer.startEntry('empty');
+        await entry.close();
+      }
+      await writer.finalize();
+
+      expect(zip64EndRecord).toBeDefined();
+      const view = new DataView(zip64EndRecord!.buffer);
+      expect(view.getBigUint64(24, true)).toBe(BigInt(entryCount));
+      expect(view.getBigUint64(32, true)).toBe(BigInt(entryCount));
+    },
+    30_000,
+  );
 });
 
 function findSignature(bytes: Uint8Array, signature: number): number {
@@ -79,4 +148,9 @@ function findSignature(bytes: Uint8Array, signature: number): number {
     if (view.getUint32(offset, true) === signature) return offset;
   }
   return -1;
+}
+
+function signature(bytes: Uint8Array): number | undefined {
+  if (bytes.byteLength < 4) return undefined;
+  return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(0, true);
 }

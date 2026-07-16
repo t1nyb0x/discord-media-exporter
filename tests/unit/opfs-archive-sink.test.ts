@@ -76,10 +76,30 @@ describe('OPFS archive sink', () => {
       },
     });
 
-    await cleanupOrphanedOpfsArchives();
+    const result = await cleanupOrphanedOpfsArchives();
 
+    expect(result).toEqual({ removed: 1, failed: 0 });
     expect(removeEntry).toHaveBeenCalledOnce();
     expect(removeEntry).toHaveBeenCalledWith('dme-zip-old.zip.part', { recursive: false });
+  });
+
+  it('reports a cleanup failure and removes the same orphan on the next startup retry', async () => {
+    let attempts = 0;
+    const removeEntry = vi.fn(async () => {
+      attempts += 1;
+      if (attempts === 1) throw new DOMException('busy', 'InvalidStateError');
+    });
+    installStorageMock({
+      getFileHandle: vi.fn(),
+      removeEntry,
+      entries: async function* () {
+        yield ['dme-zip-retry.zip.part', {}];
+      },
+    });
+
+    expect(await cleanupOrphanedOpfsArchives()).toEqual({ removed: 0, failed: 1 });
+    expect(await cleanupOrphanedOpfsArchives()).toEqual({ removed: 1, failed: 0 });
+    expect(removeEntry).toHaveBeenCalledTimes(2);
   });
 });
 

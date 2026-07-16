@@ -8,7 +8,7 @@
 ## 現在の状態
 
 - フェーズ: Phase 6 / Disk-streamed full-selection ZIP implementation
-- 実装: `0.5.0`でZIP64をOPFSへ逐次出力する方式へ移行。自動検証は完了し、大容量のChrome Stable実機検証は継続中
+- 実装: `0.5.0`でZIP64をOPFSへ逐次出力する方式へ移行し、`0.5.1`で4 GiB・65,536 entry・容量不足の自動境界検証を追加。Chrome Stable実測は継続中
 - 対象: Google Chrome、Manifest V3
 - 最初の対象画面: `https://discord.com/channels/*`
 - 目的: 表示中メディアの保存支援
@@ -99,12 +99,14 @@ pnpm build
 - [0.4.0 リリースノート](docs/release-notes-0.4.0.md)
 - [0.4.1 リリースノート](docs/release-notes-0.4.1.md)
 - [0.5.0 リリースノート](docs/release-notes-0.5.0.md)
+- [0.5.1 リリースノート](docs/release-notes-0.5.1.md)
 - [限定配布テストチェックリスト](docs/testing/limited-beta-checklist.md)
 - [Phase 5 メディアZIP手動テスト](docs/testing/zip-export-checklist.md)
 - [Phase 5 自動検証記録](docs/reviews/phase5-automated-verification.md)
 - [0.4.0 自動収集機能の検証記録](docs/reviews/0.4.0-automated-verification.md)
 - [0.4.1 リリース検証記録](docs/reviews/0.4.1-release-verification.md)
 - [Phase 6 自動検証記録](docs/reviews/phase6-automated-verification.md)
+- [0.5.1 自動境界検証記録](docs/reviews/0.5.1-automated-verification.md)
 - [Phase 6 全選択候補のディスクストリーミングZIP](docs/large-zip-export.md)
 - [保守・更新方針](docs/maintenance.md)
 - [ロードマップ](docs/roadmap.md)

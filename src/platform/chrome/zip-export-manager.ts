@@ -129,7 +129,7 @@ class ChromeZipExportManager {
     const status = delta.state?.current;
     if (status !== 'complete' && status !== 'interrupted') return;
 
-    await this.finishDownload(status);
+    await this.finishDownload(status, delta.error?.current);
   }
 
   private async saveZip(
@@ -158,7 +158,7 @@ class ChromeZipExportManager {
       await this.persist();
       const [download] = await browser.downloads.search({ id: downloadId });
       if (download?.state === 'complete' || download?.state === 'interrupted') {
-        await this.finishDownload(download.state);
+        await this.finishDownload(download.state, download.error);
       }
     } catch {
       await this.setFailed('SAVE_FAILED');
@@ -181,7 +181,7 @@ class ChromeZipExportManager {
       if (download?.state === 'complete') this.state.status = 'complete';
       else if (download?.state === 'interrupted' || download === undefined) {
         this.state.status = 'failed';
-        this.state.error = zipExportErrorMessage('SAVE_FAILED');
+        this.state.error = zipExportErrorMessage(downloadFailureCode(download?.error));
       }
       await this.persist();
       if (!isActiveZipStatus(this.state.status) && this.state.jobId !== undefined) {
@@ -209,7 +209,7 @@ class ChromeZipExportManager {
     if (jobId !== undefined) await cleanupJob(jobId);
   }
 
-  private async finishDownload(status: 'complete' | 'interrupted'): Promise<void> {
+  private async finishDownload(status: 'complete' | 'interrupted', reason?: string): Promise<void> {
     const jobId = this.state.jobId;
     if (status === 'complete') {
       this.state.status = 'complete';
@@ -217,7 +217,7 @@ class ChromeZipExportManager {
       delete this.state.error;
     } else {
       this.state.status = 'failed';
-      this.state.error = zipExportErrorMessage('SAVE_FAILED');
+      this.state.error = zipExportErrorMessage(downloadFailureCode(reason));
     }
     await this.persist();
     if (jobId !== undefined) await cleanupJob(jobId);
@@ -305,4 +305,8 @@ function isZipExportState(value: unknown): value is ZipExportState {
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+function downloadFailureCode(reason: string | undefined): ZipExportErrorCode {
+  return reason === 'FILE_NO_SPACE' ? 'DOWNLOAD_NO_SPACE' : 'SAVE_FAILED';
 }

@@ -35,7 +35,10 @@ vi.mock('wxt/browser', () => ({
 }));
 
 describe('popup ZIP export', () => {
+  const originalStorage = navigator.storage;
+
   afterEach(() => {
+    Object.defineProperty(navigator, 'storage', { configurable: true, value: originalStorage });
     vi.clearAllTimers();
     vi.useRealTimers();
     vi.resetModules();
@@ -43,6 +46,15 @@ describe('popup ZIP export', () => {
 
   it('requests optional CDN access from the ZIP click and starts selected entries', async () => {
     vi.useFakeTimers();
+    Object.defineProperty(navigator, 'storage', {
+      configurable: true,
+      value: {
+        estimate: vi.fn(async () => ({
+          usage: 2 * 1024 * 1024,
+          quota: 10 * 1024 * 1024,
+        })),
+      },
+    });
     browserMocks.queryTabs.mockResolvedValue([{ id: 1, url: channelScope }]);
     browserMocks.executeScript.mockResolvedValue([
       { result: { ok: true, scope: channelScope, candidates: [candidate] } },
@@ -118,6 +130,7 @@ describe('popup ZIP export', () => {
     });
     expect(document.getElementById('zip-progress')?.hidden).toBe(false);
     expect(document.getElementById('zip-progress-summary')?.textContent).toContain('取得中');
+    expect(document.getElementById('notice')?.textContent).toContain('8.0 MiB');
   });
 });
 
