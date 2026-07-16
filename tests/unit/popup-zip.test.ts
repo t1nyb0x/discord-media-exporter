@@ -56,20 +56,30 @@ describe('popup ZIP export', () => {
       },
     });
     browserMocks.queryTabs.mockResolvedValue([{ id: 1, url: channelScope }]);
-    browserMocks.executeScript.mockResolvedValue([
-      { result: { ok: true, scope: channelScope, candidates: [candidate] } },
-    ]);
-    browserMocks.sendTabMessage.mockResolvedValue({ active: false });
+    browserMocks.executeScript.mockResolvedValue([{ result: { active: false } }]);
+    browserMocks.sendTabMessage.mockImplementation(
+      async (_tabId: number, request: { type: string }) => {
+        switch (request.type) {
+          case 'GET_MEDIA_COLLECTOR_STATUS':
+            return { type: 'MEDIA_COLLECTOR_STATUS', active: false };
+          case 'START_MEDIA_COLLECTOR':
+            return {
+              type: 'MEDIA_COLLECTOR_STARTED',
+              active: true,
+              collection: { scope: channelScope, candidates: [candidate] },
+              visibleCandidateCount: 1,
+            };
+          case 'SET_MEDIA_COLLECTOR_COUNT':
+            return { type: 'MEDIA_COLLECTOR_STATUS', active: true };
+          default:
+            throw new Error('unexpected tab request');
+        }
+      },
+    );
     browserMocks.requestPermission.mockResolvedValue(true);
     browserMocks.removePermission.mockResolvedValue(true);
     browserMocks.sendMessage.mockImplementation(async (request: { type: string }) => {
       switch (request.type) {
-        case 'REGISTER_SCAN_RESULT':
-          return {
-            ok: true,
-            type: 'SCAN_REGISTERED',
-            collection: { scope: channelScope, candidates: [candidate] },
-          };
         case 'GET_SCAN_COLLECTION':
           return {
             ok: true,

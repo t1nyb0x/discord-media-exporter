@@ -36,35 +36,84 @@ describe('guided scroll collection', () => {
   });
 
   it('runs one step per explicit button click and stops from the page control', () => {
+    const onStart = vi.fn(async () => ({ ok: true as const, collectedCount: 0 }));
     const onStep = vi.fn(() => ({ status: 'moved' as const, reachedStart: false }));
     const onRevealSpoilers = vi.fn(() => ({ revealed: 2, failed: 0 }));
     const onStop = vi.fn();
     const controls = new GuidedCollectionControls(document, {
+      onStart,
       onStep,
       onRevealSpoilers,
       onStop,
+    });
+    controls.showActive(0);
+    const host = document.getElementById('discord-media-exporter-guided-controls')!;
+    const buttons = host.shadowRoot!.querySelectorAll<HTMLButtonElement>('button');
+
+    buttons[1]!.click();
+    expect(onStep).toHaveBeenCalledOnce();
+    expect(host.shadowRoot!.textContent).toContain('1画面戻りました');
+
+    buttons[2]!.click();
+    expect(onRevealSpoilers).toHaveBeenCalledOnce();
+    expect(host.shadowRoot!.textContent).toContain('2件のスポイラー');
+
+    buttons[3]!.click();
+    expect(onStop).toHaveBeenCalledOnce();
+
+    controls.setCollectedCount(500);
+    expect(buttons[1]!.disabled).toBe(true);
+    expect(host.shadowRoot!.textContent).toContain('500件');
+    controls.setCollectedCount(10);
+    expect(buttons[1]!.disabled).toBe(false);
+    controls.remove();
+    expect(document.getElementById('discord-media-exporter-guided-controls')).toBeNull();
+  });
+
+  it('shows an inactive launcher and guards one asynchronous start action', async () => {
+    const onStart = vi.fn(async () => ({ ok: true as const, collectedCount: 4 }));
+    const controls = new GuidedCollectionControls(document, {
+      onStart,
+      onStep: vi.fn(() => ({ status: 'at_start' as const })),
+      onRevealSpoilers: vi.fn(() => ({ revealed: 0, failed: 0 })),
+      onStop: vi.fn(),
+    });
+    const host = document.getElementById('discord-media-exporter-guided-controls')!;
+    const buttons = host.shadowRoot!.querySelectorAll<HTMLButtonElement>('button');
+
+    expect(buttons[0]!.hidden).toBe(false);
+    expect(buttons[1]!.hidden).toBe(true);
+    expect(host.shadowRoot!.textContent).toContain('自動収集は停止中');
+
+    buttons[0]!.click();
+    buttons[0]!.click();
+    await flushPromises();
+
+    expect(onStart).toHaveBeenCalledOnce();
+    expect(buttons[0]!.hidden).toBe(true);
+    expect(buttons[1]!.hidden).toBe(false);
+    expect(host.shadowRoot!.textContent).toContain('4件を収集中');
+    controls.remove();
+  });
+
+  it('keeps the launcher inactive when collection cannot start', async () => {
+    const controls = new GuidedCollectionControls(document, {
+      onStart: vi.fn(async () => ({ ok: false as const, message: '開始できませんでした。' })),
+      onStep: vi.fn(() => ({ status: 'at_start' as const })),
+      onRevealSpoilers: vi.fn(() => ({ revealed: 0, failed: 0 })),
+      onStop: vi.fn(),
     });
     const host = document.getElementById('discord-media-exporter-guided-controls')!;
     const buttons = host.shadowRoot!.querySelectorAll<HTMLButtonElement>('button');
 
     buttons[0]!.click();
-    expect(onStep).toHaveBeenCalledOnce();
-    expect(host.shadowRoot!.textContent).toContain('1画面戻りました');
+    await flushPromises();
 
-    buttons[1]!.click();
-    expect(onRevealSpoilers).toHaveBeenCalledOnce();
-    expect(host.shadowRoot!.textContent).toContain('2件のスポイラー');
-
-    buttons[2]!.click();
-    expect(onStop).toHaveBeenCalledOnce();
-
-    controls.setCollectedCount(500);
-    expect(buttons[0]!.disabled).toBe(true);
-    expect(host.shadowRoot!.textContent).toContain('500件');
-    controls.setCollectedCount(10);
+    expect(buttons[0]!.hidden).toBe(false);
     expect(buttons[0]!.disabled).toBe(false);
+    expect(buttons[1]!.hidden).toBe(true);
+    expect(host.shadowRoot!.textContent).toContain('開始できませんでした');
     controls.remove();
-    expect(document.getElementById('discord-media-exporter-guided-controls')).toBeNull();
   });
 
   it('fails safely when the message scroll container is unavailable', () => {
@@ -161,4 +210,8 @@ function rect(left: number, top: number, width: number, height: number): DOMRect
     height,
     toJSON: () => ({}),
   };
+}
+
+async function flushPromises(): Promise<void> {
+  for (let index = 0; index < 8; index += 1) await Promise.resolve();
 }

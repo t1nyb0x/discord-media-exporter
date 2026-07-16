@@ -5,14 +5,14 @@ import type {
   DownloadBatchState,
   MediaCandidate,
   MediaKind,
-  ScanResult,
   ZipExportState,
 } from '../../src/domain/media';
 import { MAX_COLLECTED_CANDIDATES } from '../../src/domain/download-manager';
 import { discordChannelScope, discordImageThumbnailUrl } from '../../src/domain/url';
 import { isValidMediaCandidate } from '../../src/domain/validation';
+import type { CollectorResponse } from '../../src/shared/collector-messages';
 import { isRecord, type ExtensionRequest, type ExtensionResponse } from '../../src/shared/messages';
-import { ZIP_HOST_ORIGINS } from '../../src/shared/permissions';
+import { DISCORD_PAGE_ORIGIN, ZIP_HOST_ORIGINS } from '../../src/shared/permissions';
 
 const state: {
   candidates: MediaCandidate[];
@@ -29,6 +29,8 @@ const state: {
 };
 
 const scanButton = requireElement<HTMLButtonElement>('scan-button');
+const launcherSettingToggle = requireElement<HTMLInputElement>('launcher-setting-toggle');
+const launcherSettingStatus = requireElement<HTMLElement>('launcher-setting-status');
 const results = requireElement<HTMLElement>('results');
 const candidateList = requireElement<HTMLUListElement>('candidate-list');
 const candidateCount = requireElement<HTMLElement>('candidate-count');
@@ -49,6 +51,7 @@ const zipProgressDetail = requireElement<HTMLElement>('zip-progress-detail');
 const zipCancelButton = requireElement<HTMLButtonElement>('zip-cancel-button');
 
 scanButton.addEventListener('click', () => void toggleMediaCollector());
+launcherSettingToggle.addEventListener('change', () => void toggleDiscordLauncherSetting());
 kindFilter.addEventListener('change', () => {
   state.filter = isMediaFilter(kindFilter.value) ? kindFilter.value : 'all';
   renderCandidates();
@@ -70,6 +73,7 @@ const scanCollectionRestoration = restoreScanCollection();
 void scanCollectionRestoration;
 const collectorStatusRestoration = restoreCollectorStatus();
 void collectorStatusRestoration;
+void restoreDiscordLauncherSetting();
 void refreshDownloadStatus();
 void refreshZipExportStatus();
 const statusTimer = window.setInterval(() => {
@@ -78,6 +82,82 @@ const statusTimer = window.setInterval(() => {
 }, 1_000);
 window.addEventListener('unload', () => window.clearInterval(statusTimer));
 
+/** Enables or disables automatic inactive-launcher injection from an explicit setting action. */
+async function toggleDiscordLauncherSetting(): Promise<void> {
+  launcherSettingToggle.disabled = true;
+  setLauncherSettingStatus('設定を更新中…');
+
+  try {
+    if (launcherSettingToggle.checked) {
+      const granted = await browser.permissions.request({
+        origins: [DISCORD_PAGE_ORIGIN],
+      });
+      if (!granted) {
+        launcherSettingToggle.checked = false;
+        setLauncherSettingStatus('Discordサイト権限が許可されなかったためOFFのままです。', true);
+        return;
+      }
+      const response = await sendRequest({ type: 'SYNC_DISCORD_LAUNCHER_SETTING' });
+      const enabled = launcherSettingEnabled(response);
+      launcherSettingToggle.checked = enabled;
+      setLauncherSettingStatus(
+        enabled
+          ? 'ON: Discordチャンネルを開くと開始ボタンを表示します。'
+          : '権限状態を同期できなかったためOFFです。',
+        !enabled,
+      );
+      return;
+    }
+
+    const response = await sendRequest({ type: 'DISABLE_DISCORD_LAUNCHER_SETTING' });
+    launcherSettingToggle.checked = launcherSettingEnabled(response);
+    setLauncherSettingStatus('OFF: popupを開いた時だけ開始ボタンを表示します。');
+  } catch (error) {
+    await restoreDiscordLauncherSetting();
+    setLauncherSettingStatus(
+      error instanceof Error ? error.message : '常時表示の設定を更新できませんでした。',
+      true,
+    );
+  } finally {
+    launcherSettingToggle.disabled = false;
+  }
+}
+
+/** Restores the launcher setting from the optional Discord permission state. */
+async function restoreDiscordLauncherSetting(): Promise<void> {
+  launcherSettingToggle.disabled = true;
+  try {
+    const response = await sendRequest({ type: 'GET_DISCORD_LAUNCHER_SETTING' });
+    const enabled = launcherSettingEnabled(response);
+    launcherSettingToggle.checked = enabled;
+    setLauncherSettingStatus(
+      enabled
+        ? 'ON: Discordチャンネルを開くと開始ボタンを表示します。'
+        : 'OFF: popupを開いた時だけ開始ボタンを表示します。',
+    );
+  } catch {
+    launcherSettingToggle.checked = false;
+    setLauncherSettingStatus('Discordサイト権限の状態を確認できませんでした。', true);
+  } finally {
+    launcherSettingToggle.disabled = false;
+  }
+}
+
+/** Extracts a validated launcher-setting state from a background response. */
+function launcherSettingEnabled(response: ExtensionResponse): boolean {
+  if (!response.ok) throw new Error(response.error);
+  if (response.type !== 'DISCORD_LAUNCHER_SETTING') {
+    throw new Error('常時表示の設定状態を確認できませんでした。');
+  }
+  return response.enabled;
+}
+
+/** Updates the permission-setting status with an optional error style. */
+function setLauncherSettingStatus(message: string, isError = false): void {
+  launcherSettingStatus.textContent = message;
+  launcherSettingStatus.classList.toggle('launcher-setting-status-error', isError);
+}
+
 /** Starts or stops collection based on the restored collector state. */
 async function toggleMediaCollector(): Promise<void> {
   await collectorStatusRestoration;
@@ -85,7 +165,7 @@ async function toggleMediaCollector(): Promise<void> {
   else await startMediaCollector();
 }
 
-/** Injects the collector, registers its first result, and updates popup state. */
+/** Starts the injected page collector and updates popup state. */
 async function startMediaCollector(): Promise<void> {
   setBusy(scanButton, true, '開始中…');
   setNotice('');
@@ -96,32 +176,47 @@ async function startMediaCollector(): Promise<void> {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
     if (tab?.id === undefined) throw new Error('対象タブを確認できませんでした。');
     targetTabId = tab.id;
+    const activeScope = typeof tab.url === 'string' ? discordChannelScope(tab.url) : null;
+    if (activeScope === null) {
+      throw new Error('Discordのチャンネル画面を開いてください。');
+    }
 
-    const injectionResults = await browser.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: ['scan.js'],
+    await ensurePageLauncher(tab.id);
+    const collectorResponse = await sendCollectorRequest(tab.id, {
+      type: 'START_MEDIA_COLLECTOR',
     });
-    const scanResult = injectionResults[0]?.result;
-    if (!isScanResult(scanResult)) throw new Error('スキャン結果を検証できませんでした。');
-    if (!scanResult.ok) throw new Error(scanResult.message);
-
-    const response = await sendRequest({
-      type: 'REGISTER_SCAN_RESULT',
-      scope: scanResult.scope,
-      candidates: scanResult.candidates,
-    });
-    if (!response.ok) throw new Error(response.error);
-    if (response.type !== 'SCAN_REGISTERED') throw new Error('予期しない応答です。');
+    if (collectorResponse.type === 'MEDIA_COLLECTOR_START_FAILED') {
+      throw new Error(collectorResponse.error);
+    }
+    let collection: CandidateCollection;
+    let visibleCandidateCount: number;
+    if (collectorResponse.type === 'MEDIA_COLLECTOR_STARTED') {
+      collection = collectorResponse.collection;
+      visibleCandidateCount = collectorResponse.visibleCandidateCount;
+    } else if (collectorResponse.active) {
+      const collectionResponse = await sendRequest({
+        type: 'GET_SCAN_COLLECTION',
+        scope: activeScope,
+      });
+      if (!collectionResponse.ok || collectionResponse.type !== 'SCAN_COLLECTION') {
+        throw new Error('自動収集の候補を確認できませんでした。');
+      }
+      collection = collectionResponse.collection;
+      visibleCandidateCount = 0;
+    } else {
+      throw new Error('自動収集の開始状態を確認できませんでした。');
+    }
+    if (collection.scope !== activeScope) throw new Error('自動収集の対象を確認できませんでした。');
 
     const previousIds = new Set(state.candidates.map((candidate) => candidate.id));
-    const addedCount = response.collection.candidates.filter(
+    const addedCount = collection.candidates.filter(
       (candidate) => !previousIds.has(candidate.id),
     ).length;
-    applyCollection(response.collection);
+    applyCollection(collection);
     await browser.tabs
       .sendMessage(tab.id, {
         type: 'SET_MEDIA_COLLECTOR_COUNT',
-        count: response.collection.candidates.length,
+        count: collection.candidates.length,
       })
       .catch(() => null);
     state.collectorActive = true;
@@ -129,7 +224,7 @@ async function startMediaCollector(): Promise<void> {
     setNotice(
       state.candidates.length >= MAX_COLLECTED_CANDIDATES && addedCount === 0
         ? `自動収集を開始しました。収集上限の${MAX_COLLECTED_CANDIDATES}件に達しています。`
-        : scanResult.candidates.length === 0
+        : visibleCandidateCount === 0
           ? `自動収集を開始しました。Discord画面右下の「1画面戻る」も利用できます。現在の表示範囲に添付はありません（収集中 ${state.candidates.length}件）。`
           : `${addedCount}件を追加し、自動収集を開始しました。Discord画面右下の「1画面戻る」も利用できます（収集中 ${state.candidates.length}件）。`,
     );
@@ -169,17 +264,46 @@ async function stopMediaCollector(): Promise<void> {
 async function restoreCollectorStatus(): Promise<void> {
   try {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id === undefined) return;
-    const response: unknown = await browser.tabs.sendMessage(tab.id, {
+    if (
+      tab?.id === undefined ||
+      typeof tab.url !== 'string' ||
+      discordChannelScope(tab.url) === null
+    ) {
+      return;
+    }
+    await ensurePageLauncher(tab.id);
+    const response = await sendCollectorRequest(tab.id, {
       type: 'GET_MEDIA_COLLECTOR_STATUS',
     });
     state.collectorActive =
-      isRecord(response) && response.active === true && (await getActiveChannelScope()) !== null;
+      response.type === 'MEDIA_COLLECTOR_STATUS' &&
+      response.active &&
+      (await getActiveChannelScope()) !== null;
   } catch {
     state.collectorActive = false;
   } finally {
     scanButton.textContent = collectorButtonLabel();
   }
+}
+
+/** Injects or reuses the inactive page launcher after an explicit popup action. */
+async function ensurePageLauncher(tabId: number): Promise<void> {
+  await browser.scripting.executeScript({
+    target: { tabId },
+    files: ['scan.js'],
+  });
+}
+
+/** Sends and validates one popup-to-page collector request. */
+async function sendCollectorRequest(
+  tabId: number,
+  request: { type: 'GET_MEDIA_COLLECTOR_STATUS' } | { type: 'START_MEDIA_COLLECTOR' },
+): Promise<CollectorResponse> {
+  const response: unknown = await browser.tabs.sendMessage(tabId, request);
+  if (!isCollectorResponse(response)) {
+    throw new Error('自動収集の状態を検証できませんでした。');
+  }
+  return response;
 }
 
 /** Returns the scan button label for the current collector state. */
@@ -525,20 +649,6 @@ async function sendRequest(request: ExtensionRequest): Promise<ExtensionResponse
   return response;
 }
 
-/** Validates an injected page scan result. */
-function isScanResult(value: unknown): value is ScanResult {
-  if (!isRecord(value) || typeof value.ok !== 'boolean') return false;
-  if (value.ok) {
-    return (
-      typeof value.scope === 'string' &&
-      discordChannelScope(value.scope) === value.scope &&
-      Array.isArray(value.candidates) &&
-      value.candidates.every(isValidMediaCandidate)
-    );
-  }
-  return typeof value.code === 'string' && typeof value.message === 'string';
-}
-
 /** Validates the shared extension response envelope used by the popup. */
 function isExtensionResponse(value: unknown): value is ExtensionResponse {
   if (!isRecord(value) || typeof value.ok !== 'boolean') return false;
@@ -547,6 +657,7 @@ function isExtensionResponse(value: unknown): value is ExtensionResponse {
   if (['SCAN_REGISTERED', 'SCAN_COLLECTION', 'SCAN_COLLECTION_CLEARED'].includes(value.type)) {
     return isCandidateCollection(value.collection);
   }
+  if (value.type === 'DISCORD_LAUNCHER_SETTING') return typeof value.enabled === 'boolean';
   return true;
 }
 
@@ -557,6 +668,26 @@ function isCandidateCollection(value: unknown): value is CandidateCollection {
     (value.scope === null || typeof value.scope === 'string') &&
     Array.isArray(value.candidates) &&
     value.candidates.every(isValidMediaCandidate)
+  );
+}
+
+/** Validates a page collector response before updating popup state. */
+function isCollectorResponse(value: unknown): value is CollectorResponse {
+  if (!isRecord(value) || typeof value.type !== 'string' || typeof value.active !== 'boolean') {
+    return false;
+  }
+  if (value.type === 'MEDIA_COLLECTOR_STATUS') return true;
+  if (value.type === 'MEDIA_COLLECTOR_START_FAILED') {
+    return value.active === false && typeof value.error === 'string';
+  }
+  return (
+    value.type === 'MEDIA_COLLECTOR_STARTED' &&
+    value.active === true &&
+    isCandidateCollection(value.collection) &&
+    typeof value.visibleCandidateCount === 'number' &&
+    Number.isInteger(value.visibleCandidateCount) &&
+    value.visibleCandidateCount >= 0 &&
+    value.visibleCandidateCount <= MAX_COLLECTED_CANDIDATES
   );
 }
 

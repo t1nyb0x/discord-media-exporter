@@ -21,6 +21,23 @@
 
       <button id="scan-button" class="button button-primary" type="button">自動収集を開始</button>
 
+      <section class="launcher-setting" aria-labelledby="launcher-setting-label">
+        <label class="launcher-setting-row" for="launcher-setting-toggle">
+          <span>
+            <span id="launcher-setting-label" class="launcher-setting-title"
+              >Discordで開始ボタンを常に表示</span
+            >
+            <span class="launcher-setting-description"
+              >任意のDiscordサイト権限を使い、チャンネルを開いた時点で開始ボタンだけを表示します。</span
+            >
+          </span>
+          <input id="launcher-setting-toggle" type="checkbox" role="switch" disabled />
+        </label>
+        <p id="launcher-setting-status" class="launcher-setting-status" aria-live="polite">
+          権限状態を確認中…
+        </p>
+      </section>
+
       <section id="results" class="results" hidden>
         <div class="toolbar" aria-label="メディアの絞り込み">
           <label class="filter-label" for="kind-filter">種類</label>
