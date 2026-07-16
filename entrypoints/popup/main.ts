@@ -116,14 +116,20 @@ async function startMediaCollector(): Promise<void> {
       (candidate) => !previousIds.has(candidate.id),
     ).length;
     applyCollection(response.collection);
+    await browser.tabs
+      .sendMessage(tab.id, {
+        type: 'SET_MEDIA_COLLECTOR_COUNT',
+        count: response.collection.candidates.length,
+      })
+      .catch(() => null);
     state.collectorActive = true;
     results.hidden = false;
     setNotice(
       state.candidates.length >= MAX_COLLECTED_CANDIDATES && addedCount === 0
         ? `自動収集を開始しました。収集上限の${MAX_COLLECTED_CANDIDATES}件に達しています。`
         : scanResult.candidates.length === 0
-          ? `自動収集を開始しました。現在の表示範囲に添付はありません（収集中 ${state.candidates.length}件）。`
-          : `${addedCount}件を追加し、自動収集を開始しました（収集中 ${state.candidates.length}件）。`,
+          ? `自動収集を開始しました。Discord画面右下の「1画面戻る」も利用できます。現在の表示範囲に添付はありません（収集中 ${state.candidates.length}件）。`
+          : `${addedCount}件を追加し、自動収集を開始しました。Discord画面右下の「1画面戻る」も利用できます（収集中 ${state.candidates.length}件）。`,
     );
   } catch (error) {
     if (targetTabId !== undefined) {
@@ -202,6 +208,12 @@ async function clearScanCollection(): Promise<void> {
     if (!response.ok) throw new Error(response.error);
     if (response.type !== 'SCAN_COLLECTION_CLEARED') throw new Error('予期しない応答です。');
     applyCollection(response.collection);
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id !== undefined) {
+      await browser.tabs
+        .sendMessage(tab.id, { type: 'SET_MEDIA_COLLECTOR_COUNT', count: 0 })
+        .catch(() => null);
+    }
     results.hidden = true;
     setNotice('このチャンネルの収集結果をクリアしました。');
   } catch (error) {

@@ -43,7 +43,8 @@ describe('VisibleMediaCollector', () => {
     vi.useFakeTimers();
     prepareFixture();
     const publish = vi.fn();
-    const collector = new VisibleMediaCollector(document, window, publish);
+    const onStopped = vi.fn();
+    const collector = new VisibleMediaCollector(document, window, publish, undefined, onStopped);
     collector.start();
 
     window.location.href = 'https://discord.com/channels/100/300';
@@ -52,6 +53,7 @@ describe('VisibleMediaCollector', () => {
 
     expect(collector.isActive()).toBe(false);
     expect(publish).not.toHaveBeenCalled();
+    expect(onStopped).toHaveBeenCalledOnce();
   });
 
   it('retries a changed visible range after a temporary publish failure', async () => {

@@ -2,6 +2,37 @@
 
 このプロジェクトの利用者向け変更を記録します。バージョンは Semantic Versioning に従います。
 
+## [0.6.0] - 2026-07-16
+
+### Added
+
+- 自動収集開始後にDiscord画面内へ表示するガイド付き収集パネル
+- ユーザーのclickごとに古い投稿方向へ表示高の80%だけ移動する「1画面戻る」操作
+- ガイドからの停止、500件到達時の移動無効化、上端・scroll container不明時の安全な停止表示
+- scroll container検出、一操作一移動、停止、チャンネル変更を扱う自動テスト
+- Phase 7仕様とADR-0006
+- ZIP内ファイルを候補の取得順に`001_`から始まる連番で格納
+- 明示操作時だけ、表示範囲内のスポイラーを最大50件解除するガイドbutton
+- スポイラー解除の可視範囲・aria-label・件数上限テストとADR-0007
+
+### Security
+
+- timer・再帰・連続loopによる無人の自動スクロールを不使用
+- Discord内部API、Gateway、ユーザートークン、Cookie、追加permissionを不使用
+- ガイドUIをShadow DOMへ隔離し、外部scriptと`innerHTML`を不使用
+- スポイラーは画面外・disabled・不明要素を操作せず、自動反復と設定永続化を不使用
+
+### Fixed
+
+- OPFSから返す完成archiveのMIME typeが空で、Chrome環境によって`.txt`として扱われる問題
+- ZIP対象を選択した順序で解決していたため、候補の取得順とentry順が一致しない問題
+
+### Known limitations
+
+- DiscordのDOM・scroll container変更により移動できなくなる可能性がある
+- ガイド付き収集がDiscord規約上許可されるという公式な適用除外は確認できていない
+- 実Discordでの移動方向、描画待ち、UI重なり、停止条件の手動確認が必要
+
 ## [0.5.1] - 2026-07-16
 
 ### Added

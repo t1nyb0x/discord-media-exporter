@@ -75,6 +75,8 @@ Phase 5 のメディア ZIP は、選択件数 100 件、1ファイル 50 MiB、
 | LZIP-11 | 通常終了だけでなく、次回offscreen起動時にも孤児一時ファイルを列挙・削除する                                | Must   |
 | LZIP-12 | 進捗に入力件数・バイト数とZIP出力バイト数を含め、完全なURLやローカルパスを含めない                         | Must   |
 | LZIP-13 | 既存のredirect、host、path、filename、Cookieなし、権限解放の検証境界を維持する                             | Must   |
+| LZIP-14 | 選択候補をregistryへの取得順で処理し、ZIP内ファイル名へ連番を付ける                                        | Must   |
+| LZIP-15 | 完成したOPFS `File`を`application/zip`のBlobとしてdownloadへ渡す                                           | Must   |
 
 ## 6. リソース方針
 
@@ -223,6 +225,12 @@ type LargeZipStatus =
 - `chrome.downloads`の`FILE_NO_SPACE`表示とservice worker状態復元: Pass
 - `navigator.storage.estimate()`の推定空き容量表示: Pass
 
+`0.6.0`で追加した出力回帰:
+
+- 選択操作の順序にかかわらずregistryへの取得順で候補を解決: Pass
+- ZIP内ファイル名を`001_`から最大`500_`までの連番にする: Pass
+- OPFSの`File.type`が空でも完成Blobを`application/zip`に固定: Pass
+
 `LZIP-07`のうち`navigator.storage.estimate()`による推定空き容量表示は実装済みです。開始前の既知`Content-Length`合計は、追加のHEAD requestや事前GETを行わずに候補情報だけから取得できないため、`0.5.0`では表示しません。選択件数、推定空き容量、処理中の実入力・実出力バイト数を表示し、既知サイズ合計はShould要件のfollow-upとして残します。
 
 ### Chrome Stable手動テスト
@@ -239,7 +247,7 @@ type LargeZipStatus =
 
 ## 11. 完了条件
 
-- LZIP-01からLZIP-13を満たす。
+- LZIP-01からLZIP-15を満たす。
 - ZIP固有の100件・50 MiB・100 MiB固定上限を実装とUIから削除する。
 - 101件と500件が一つのZIPとして保存・展開できる。
 - 4 GiB超のZIP64 archiveを生成・展開できる。

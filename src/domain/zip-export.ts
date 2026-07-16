@@ -21,10 +21,14 @@ export function prepareZipEntries(candidates: MediaCandidate[]): ZipEntryCandida
   if (candidates.length === 0) throw new Error('ZIPに保存するメディアを選択してください。');
 
   const usedNames = new Set<string>();
-  return candidates.map((candidate) => ({
+  const sequenceWidth = Math.max(3, String(candidates.length).length);
+  return candidates.map((candidate, index) => ({
     candidateId: candidate.id,
     sourceUrl: candidate.sourceUrl,
-    filename: uniqueFilename(candidate.suggestedFilename, usedNames),
+    filename: uniqueFilename(
+      `${String(index + 1).padStart(sequenceWidth, '0')}_${candidate.suggestedFilename}`,
+      usedNames,
+    ),
   }));
 }
 

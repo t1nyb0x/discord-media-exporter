@@ -166,6 +166,19 @@ describe('DownloadManager', () => {
     expect(collection.candidates).toHaveLength(500);
     expect(collection.candidates.at(-1)?.suggestedFilename).toBe('file-499.png');
   });
+
+  it('resolves selected ZIP candidates in their original collection order', async () => {
+    const manager = new DownloadManager(new FakeDownloadPlatform());
+    const candidates = [1, 2, 3].map(createCandidate);
+    await manager.registerCandidates(candidates, scope);
+
+    const selected = await manager.getRegisteredCandidates([candidates[2]!.id, candidates[0]!.id]);
+
+    expect(selected.map((candidate) => candidate.suggestedFilename)).toEqual([
+      'file-1.png',
+      'file-3.png',
+    ]);
+  });
 });
 
 class FakeDownloadPlatform implements DownloadPlatform {

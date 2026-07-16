@@ -4,7 +4,7 @@ import type { MediaCandidate } from '../../src/domain/media';
 import { createZipArchiveFilename, prepareZipEntries } from '../../src/domain/zip-export';
 
 describe('ZIP export domain', () => {
-  it('creates safe case-insensitive unique entry names while preserving extensions', () => {
+  it('prefixes safe entry names with their acquisition sequence', () => {
     const entries = prepareZipEntries([
       createCandidate(1, 'photo.png'),
       createCandidate(2, 'PHOTO.png'),
@@ -12,9 +12,9 @@ describe('ZIP export domain', () => {
     ]);
 
     expect(entries.map((entry) => entry.filename)).toEqual([
-      'photo.png',
-      'PHOTO (2).png',
-      'photo (3).png',
+      '001_photo.png',
+      '002_PHOTO.png',
+      '003_photo.png',
     ]);
   });
 
@@ -22,17 +22,21 @@ describe('ZIP export domain', () => {
     const filename = `${'a'.repeat(175)}.png`;
     const entries = prepareZipEntries([createCandidate(1, filename), createCandidate(2, filename)]);
 
+    expect(entries[0]?.filename).toHaveLength(180);
     expect(entries[1]?.filename).toHaveLength(180);
-    expect(entries[1]?.filename.endsWith(' (2).png')).toBe(true);
+    expect(entries[0]?.filename.startsWith('001_')).toBe(true);
+    expect(entries[1]?.filename.startsWith('002_')).toBe(true);
+    expect(entries[1]?.filename.endsWith('.png')).toBe(true);
   });
 
   it('rejects an empty selection and accepts all 500 collected candidates', () => {
     expect(() => prepareZipEntries([])).toThrow('選択');
-    expect(
-      prepareZipEntries(
-        Array.from({ length: 500 }, (_, index) => createCandidate(index, `file-${index}.png`)),
-      ),
-    ).toHaveLength(500);
+    const entries = prepareZipEntries(
+      Array.from({ length: 500 }, (_, index) => createCandidate(index, `file-${index}.png`)),
+    );
+    expect(entries).toHaveLength(500);
+    expect(entries[0]?.filename).toBe('001_file-0.png');
+    expect(entries[499]?.filename).toBe('500_file-499.png');
   });
 
   it('creates a channel-name-free archive filename in local time', () => {

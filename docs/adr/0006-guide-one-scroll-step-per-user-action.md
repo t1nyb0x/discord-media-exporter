@@ -1,0 +1,74 @@
+# ADR-0006: ユーザー操作ごとに一画面だけ遡るガイド付き収集
+
+> 表示中のスポイラーをユーザー操作時だけ解除する追加判断は[ADR-0007](0007-reveal-visible-spoilers-on-explicit-action.md)を参照してください。
+
+- Status: Accepted
+- Date: 2026-07-16
+- Decision owners: Project owner
+
+## Context
+
+[ADR-0004](0004-observe-visible-media-after-user-start.md)では、ユーザーが手動スクロールして表示した範囲を自動収集し、拡張機能による自動スクロールは行わない方針を採用しました。
+
+多数の添付を収集する場合、Discord画面とpopupを行き来しながら手動スクロールする操作負担が残ります。一方、開始後に拡張機能が上端まで無人でスクロールし続ける方式は、履歴の自動巡回・スクレイピングに近づき、現在の用途境界を大きく変えます。
+
+Discordの現行利用規約は、書面による同意のない自動的なスクレイピングを禁止しています。また通常ユーザーアカウントの自動化はself-botとして禁止される可能性があります。この機能が公式な適用除外を受けることは確認できていません。
+
+## Decision
+
+無人の連続自動スクロールは採用しません。自動収集を開始したDiscord画面内にガイド操作を表示し、ユーザーが「1画面戻る」を押すたびに、古い投稿の方向へ表示領域の80%だけ一回移動します。
+
+- popupで自動収集を明示的に開始した後だけガイドを表示する
+- 一回のclickに対して、一回だけ`scrollTop`を変更する
+- timer、再帰、連続loopによる追加scrollを行わない
+- scroll後は既存collectorが表示範囲とDOM変更を監視し、可視候補だけを追加する
+- 手動スクロールによる収集も引き続き利用できる
+- 「停止」、popupの停止操作、別チャンネル移動、reload、タブ終了でガイドとcollectorを終了する
+- メッセージscroll containerを確認できない場合は移動せず、安全に失敗する
+- 上端では無人で再試行せず、古い投稿の読み込み後にユーザーが再度押す
+- 候補registryの500件上限を維持し、到達時はガイドの移動ボタンを無効化する
+- Discord内部API、Gateway、ユーザートークン、Cookie、恒久host permissionを追加しない
+
+この判断は、ガイド付き収集がDiscord規約上許可されるという保証ではありません。利用判断と責任主体、保存する権利の確認は従来どおり必要です。
+
+## Consequences
+
+### Positive
+
+- popupを開き直さず、Discord画面内で収集を一画面ずつ進められる
+- ユーザーが各移動を認識・開始できる
+- 無人巡回、複数チャンネル収集、通常アカウントAPI自動化を避ける
+- 既存の可視範囲、チャンネル固定、重複排除、500件上限を再利用できる
+
+### Negative
+
+- 完全自動ではなく、画面ごとに操作が必要
+- DiscordのDOMやscroll container変更で移動できなくなる可能性がある
+- Shadow DOMのガイド表示がDiscord UIと重なる可能性がある
+- 限定的な方式でも、Discordから書面による許可を得た機能ではない
+
+## Rejected alternatives
+
+### 開始後に上端まで連続自動スクロール
+
+無人の履歴巡回となり、現行規約のscraping禁止と現在の限定用途に対するリスクが大きいため採用しません。
+
+### 一定間隔で自動的に一画面ずつ移動
+
+開始操作が一度だけで、その後の各移動にユーザー操作がないため採用しません。
+
+### Discord内部APIまたは通常ユーザーtokenで履歴取得
+
+非公開API・認証情報の利用と通常アカウント自動化に当たるため採用しません。
+
+## Revisit triggers
+
+- Discordから書面による許可または公式なエクスポート手段が提供された
+- Discord規約、Developer Policy、self-bot方針が変更された
+- 一画面操作でも過剰な収集、負荷、誤操作が確認された
+- scroll containerを安定して特定できなくなった
+
+## References
+
+- [Discord Terms of Service](https://discord.com/terms)
+- [Discord: Automated User Accounts (Self-Bots)](https://support.discord.com/hc/en-us/articles/115002192352-Automated-User-Accounts-Self-Bots)

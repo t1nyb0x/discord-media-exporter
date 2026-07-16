@@ -38,7 +38,8 @@ export async function createOpfsArchiveSink(jobId: string): Promise<TemporaryZip
         await writable.close();
         closed = true;
       }
-      return handle.getFile();
+      const file = await handle.getFile();
+      return file.type === 'application/zip' ? file : new Blob([file], { type: 'application/zip' });
     },
     async abort() {
       bufferedChunks = [];

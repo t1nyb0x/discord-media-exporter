@@ -70,6 +70,15 @@
 26. [ ] quota・保存先disk不足とOS標準展開機能の手動検証
 27. [x] synthetic 4 GiB、65,535／65,536 entry、101件OPFS pipelineの自動境界検証
 28. [x] cleanup再試行、`FILE_NO_SPACE`、quota参考表示の自動テスト
+29. [x] Phase 7ガイド付き一画面収集の仕様とAccepted ADR-0006
+30. [x] ページ内ガイド、scroll container検出、一操作一移動、停止の実装
+31. [x] 上端・container不明・500件・チャンネル変更の自動テスト
+32. [x] Project ownerによるガイド付き収集の実機確認
+33. [x] ZIP候補の取得順解決、連番、`application/zip` MIME修正と自動テスト
+34. [ ] 修正後のZIP内順序と`.zip`出力を実機で再確認
+35. [x] 明示操作による表示中スポイラー解除とAccepted ADR-0007
+36. [x] 可視範囲・aria-label・最大50件・通常button除外の自動テスト
+37. [ ] 実Discordでスポイラー解除と解除後収集を確認
 
 ## 5. ローカル確認手順
 
