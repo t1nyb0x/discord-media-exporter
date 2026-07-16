@@ -2,6 +2,21 @@
 
 このプロジェクトの利用者向け変更を記録します。バージョンは Semantic Versioning に従います。
 
+## [0.5.1] - 2026-07-16
+
+### Added
+
+- 4 GiB直前・超過のentry sizeとoffsetを実データなしで検証するZIP64テスト
+- 65,535件・65,536件のZIP64 end record境界テスト
+- 101件をfetchからOPFS、`File`、ZIP展開まで通すadapter integration test
+- OPFS孤児一時ファイルのcleanup失敗件数返却と次回起動相当の再試行テスト
+- 保存先容量不足`FILE_NO_SPACE`の専用エラー表示と状態復元テスト
+- `navigator.storage.estimate()`による推定空き容量表示テスト
+
+### Changed
+
+- ZIP64 writerが既存prefixを持つsinkの初期offsetを扱えるようにし、4 GiB超offsetをsynthetic検証可能に変更
+
 ## [0.5.0] - 2026-07-16
 
 ### Added

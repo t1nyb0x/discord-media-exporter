@@ -15,6 +15,7 @@
 - Phase 5: `0.3.0`メディアZIP出力を実装・自動検証・実機確認し、ADR-0003をAcceptedとして完了
 - `0.4.1` follow-up: 自動収集ボタン状態復元を修正し、自動・実機回帰を完了
 - Phase 6: store方式ZIP64 writer、OPFS逐次出力、固定上限撤廃、quota表示、cleanupを`0.5.0`へ実装し、自動検証を完了
+- Phase 6 follow-up: `0.5.1`で4 GiB・65,536 entry・101件OPFS pipeline・容量不足・cleanup再試行を自動検証
 - Phase 6 残作業: Chrome Stableでの101件・500件・1 GiB・4 GiB境界、quota・disk不足、OS展開互換性の実測と既知入力サイズ概算のfollow-up
 - 継続課題: 未確認の画面バリエーション、依存関係監査、実ブラウザ E2E
 
@@ -176,6 +177,8 @@
 - [x] ZIP固有の100件・50 MiB・100 MiB固定上限撤廃
 - [x] 最大500候補の全件処理、quota参考表示、入力・出力バイト進捗
 - [x] quota、write、キャンセル、孤児一時ファイルcleanupの自動テスト
+- [x] synthetic 4 GiB、65,535／65,536 entry、101件OPFS pipelineの自動境界テスト
+- [x] 保存先容量不足とcleanup再試行のChrome adapter自動テスト
 - [ ] 追加requestなしで取得可能な既知入力サイズ概算の設計
 - [ ] Chrome Stableでの大容量・容量不足・OS展開互換性の手動検証
 

@@ -4,11 +4,15 @@ export interface ZipArchiveSink {
   abort(): Promise<void>;
 }
 
-interface CentralDirectoryEntry {
+export interface Zip64CentralDirectoryEntry {
   filename: Uint8Array;
   crc32: number;
   size: bigint;
   localHeaderOffset: bigint;
+}
+
+export interface Zip64StoreWriterOptions {
+  initialOffset?: bigint;
 }
 
 const LOCAL_FILE_HEADER_SIGNATURE = 0x04034b50;
@@ -27,12 +31,18 @@ const UINT16_MAX = 0xffff;
 const UINT32_MAX = 0xffffffff;
 
 export class Zip64StoreWriter {
-  private readonly entries: CentralDirectoryEntry[] = [];
-  private offset = 0n;
+  private readonly entries: Zip64CentralDirectoryEntry[] = [];
+  private offset: bigint;
   private activeEntry = false;
   private finished = false;
 
-  constructor(private readonly sink: ZipArchiveSink) {}
+  constructor(
+    private readonly sink: ZipArchiveSink,
+    options: Zip64StoreWriterOptions = {},
+  ) {
+    this.offset = options.initialOffset ?? 0n;
+    if (this.offset < 0n) throw new Error('ZIP initial offset must not be negative.');
+  }
 
   async startEntry(filename: string): Promise<Zip64EntryWriter> {
     if (this.finished) throw new Error('ZIP writer is already finished.');
@@ -64,7 +74,7 @@ export class Zip64StoreWriter {
 
     const centralDirectoryOffset = this.offset;
     for (const entry of this.entries) {
-      await this.write(createCentralDirectoryEntry(entry));
+      await this.write(encodeZip64CentralDirectoryEntry(entry));
     }
     const centralDirectorySize = this.offset - centralDirectoryOffset;
     const zip64EndOffset = this.offset;
@@ -178,7 +188,7 @@ function createZip64DataDescriptor(crc32: number, size: bigint): Uint8Array {
   return bytes;
 }
 
-function createCentralDirectoryEntry(entry: CentralDirectoryEntry): Uint8Array {
+export function encodeZip64CentralDirectoryEntry(entry: Zip64CentralDirectoryEntry): Uint8Array {
   const extraLength = 28;
   const bytes = new Uint8Array(46 + entry.filename.length + extraLength);
   const view = dataView(bytes);

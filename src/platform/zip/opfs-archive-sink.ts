@@ -8,6 +8,11 @@ export interface TemporaryZipArchiveSink extends ZipArchiveSink {
   remove(): Promise<void>;
 }
 
+export interface OrphanedArchiveCleanupResult {
+  removed: number;
+  failed: number;
+}
+
 export async function createOpfsArchiveSink(jobId: string): Promise<TemporaryZipArchiveSink> {
   const root = await navigator.storage.getDirectory();
   const filename = temporaryArchiveFilename(jobId);
@@ -70,12 +75,19 @@ export async function createOpfsArchiveSink(jobId: string): Promise<TemporaryZip
   }
 }
 
-export async function cleanupOrphanedOpfsArchives(): Promise<void> {
+export async function cleanupOrphanedOpfsArchives(): Promise<OrphanedArchiveCleanupResult> {
   const root = await navigator.storage.getDirectory();
+  const result = { removed: 0, failed: 0 };
   for await (const [name] of root.entries()) {
     if (!name.startsWith(TEMP_ARCHIVE_PREFIX) || !name.endsWith(TEMP_ARCHIVE_SUFFIX)) continue;
-    await root.removeEntry(name, { recursive: false }).catch(() => undefined);
+    try {
+      await root.removeEntry(name, { recursive: false });
+      result.removed += 1;
+    } catch {
+      result.failed += 1;
+    }
   }
+  return result;
 }
 
 function temporaryArchiveFilename(jobId: string): string {

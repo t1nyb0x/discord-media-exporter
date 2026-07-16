@@ -6,7 +6,7 @@ Phase 5 のメディア ZIP は、選択件数 100 件、1ファイル 50 MiB、
 
 この文書でいう「すべて」は、開始時にユーザーが選択した検証済み候補の全件です。現在の候補収集上限 500 件は別の安全境界として維持します。ディスク空き容量、Chrome が拡張機能 origin に割り当てるクォータ、取得元 URL の有効性まで無制限になることは意味しません。
 
-実装状況: `0.5.0` core implementation complete / Chrome Stable large-volume verification and LZIP-07 known-size estimate follow-up pending
+実装状況: `0.5.1` automated boundary verification complete / Chrome Stable large-volume verification and LZIP-07 known-size estimate follow-up pending
 
 ## 2. 前提の整理
 
@@ -212,6 +212,16 @@ type LargeZipStatus =
 - OPFS write、close、abort、remove、孤児cleanup: Pass
 - `QuotaExceededError`から`STORAGE_QUOTA_EXCEEDED`への変換: Pass
 - network request・response stream例外から`FETCH_FAILED`への変換: Pass
+
+`0.5.1`で追加した自動境界検証:
+
+- 4 GiB直前・超過のentry sizeをZIP64 extra fieldへ保持: Pass
+- 4 GiB超のlocal header・central directory offsetとZIP64 locator: Pass
+- 65,535件・65,536件のZIP64 entry count: Pass
+- 101件のfetch → ZIP64 writer → OPFS adapter → `File` → 展開: Pass
+- cleanup失敗件数の返却と次回起動相当の再試行: Pass
+- `chrome.downloads`の`FILE_NO_SPACE`表示とservice worker状態復元: Pass
+- `navigator.storage.estimate()`の推定空き容量表示: Pass
 
 `LZIP-07`のうち`navigator.storage.estimate()`による推定空き容量表示は実装済みです。開始前の既知`Content-Length`合計は、追加のHEAD requestや事前GETを行わずに候補情報だけから取得できないため、`0.5.0`では表示しません。選択件数、推定空き容量、処理中の実入力・実出力バイト数を表示し、既知サイズ合計はShould要件のfollow-upとして残します。
 

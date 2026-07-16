@@ -8,6 +8,7 @@ const ZIP_ERROR_CODES = new Set([
   'TEMP_WRITE_FAILED',
   'ZIP_FAILED',
   'SAVE_FAILED',
+  'DOWNLOAD_NO_SPACE',
   'CONTEXT_LOST',
 ]);
 

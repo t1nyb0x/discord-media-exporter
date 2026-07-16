@@ -68,6 +68,8 @@
 24. [x] 500件を固定上限なしで処理する自動テスト
 25. [ ] 101件・500件・1 GiB・4 GiB超のChrome Stable実測
 26. [ ] quota・保存先disk不足とOS標準展開機能の手動検証
+27. [x] synthetic 4 GiB、65,535／65,536 entry、101件OPFS pipelineの自動境界検証
+28. [x] cleanup再試行、`FILE_NO_SPACE`、quota参考表示の自動テスト
 
 ## 5. ローカル確認手順
 
