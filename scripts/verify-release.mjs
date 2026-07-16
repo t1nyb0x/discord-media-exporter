@@ -8,6 +8,7 @@ const outputDirectory = path.join(projectRoot, '.output', 'chrome-mv3');
 const expectedPermissions = ['activeTab', 'downloads', 'offscreen', 'scripting', 'storage'];
 const expectedOptionalHostPermissions = [
   'https://cdn.discordapp.com/*',
+  'https://discord.com/*',
   'https://media.discordapp.net/*',
 ];
 const requiredFiles = [

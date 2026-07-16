@@ -13,6 +13,8 @@ export type GuidedScrollForwardResult =
   { status: 'moved'; reachedEnd: boolean } | { status: 'at_end' } | { status: 'unavailable' };
 
 interface GuidedCollectionControlOptions {
+  /** Starts collection after an explicit page-control action. */
+  onStart(): Promise<GuidedCollectionStartResult>;
   /** Performs one explicit backward-scroll step. */
   onStepBackward(): GuidedScrollStepResult;
   /** Performs one explicit forward-scroll step. */
@@ -27,6 +29,9 @@ export interface VisibleSpoilerRevealResult {
   revealed: number;
   failed: number;
 }
+
+export type GuidedCollectionStartResult =
+  { ok: true; collectedCount: number } | { ok: false; message: string };
 
 /** Moves the message container toward older posts by at most one visible page. */
 export function scrollOnePageBackward(
@@ -104,11 +109,14 @@ export function revealVisibleSpoilers(
 /** Renders and manages the explicit guided-collection controls on the Discord page. */
 export class GuidedCollectionControls {
   private readonly host: HTMLDivElement;
+  private readonly startButton: HTMLButtonElement;
   private readonly backwardButton: HTMLButtonElement;
   private readonly forwardButton: HTMLButtonElement;
   private readonly revealButton: HTMLButtonElement;
   private readonly stopButton: HTMLButtonElement;
   private readonly status: HTMLSpanElement;
+  private active = false;
+  private starting = false;
   private limitReached = false;
 
   constructor(
@@ -155,6 +163,7 @@ export class GuidedCollectionControls {
         cursor: pointer;
       }
       button.secondary { background: #4e5058; }
+      button[hidden] { display: none; }
       button:disabled { cursor: not-allowed; opacity: .55; }
       button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
       .status { color: #b5bac1; }
@@ -172,6 +181,10 @@ export class GuidedCollectionControls {
 
     const actions = documentObject.createElement('div');
     actions.className = 'actions';
+    this.startButton = documentObject.createElement('button');
+    this.startButton.type = 'button';
+    this.startButton.textContent = '自動収集を開始';
+    this.startButton.addEventListener('click', this.handleStart);
     this.backwardButton = documentObject.createElement('button');
     this.backwardButton.type = 'button';
     this.backwardButton.textContent = '1画面戻る';
@@ -191,14 +204,48 @@ export class GuidedCollectionControls {
     this.stopButton.textContent = '停止';
     this.stopButton.addEventListener('click', this.handleStop);
 
-    actions.append(this.backwardButton, this.forwardButton, this.revealButton, this.stopButton);
+    actions.append(
+      this.startButton,
+      this.backwardButton,
+      this.forwardButton,
+      this.revealButton,
+      this.stopButton,
+    );
     panel.append(title, this.status, actions);
     shadow.append(style, panel);
     documentObject.body.append(this.host);
+    this.showInactive();
+  }
+
+  /** Shows the explicit collection launcher without scanning the page. */
+  showInactive(message = '自動収集は停止中です。開始すると表示中の添付を収集します。'): void {
+    this.active = false;
+    this.starting = false;
+    this.limitReached = false;
+    this.startButton.hidden = false;
+    this.startButton.disabled = false;
+    this.backwardButton.hidden = true;
+    this.forwardButton.hidden = true;
+    this.revealButton.hidden = true;
+    this.stopButton.hidden = true;
+    this.status.textContent = message;
+  }
+
+  /** Shows the controls for an active collection session. */
+  showActive(collectedCount: number): void {
+    this.active = true;
+    this.starting = false;
+    this.startButton.hidden = true;
+    this.backwardButton.hidden = false;
+    this.forwardButton.hidden = false;
+    this.revealButton.hidden = false;
+    this.stopButton.hidden = false;
+    this.setCollectedCount(collectedCount);
   }
 
   /** Updates collection progress and disables collection actions at the hard limit. */
   setCollectedCount(count: number): void {
+    if (!this.active) return;
     if (count >= COLLECTION_LIMIT) {
       this.limitReached = true;
       this.backwardButton.disabled = true;
@@ -216,12 +263,31 @@ export class GuidedCollectionControls {
 
   /** Detaches event listeners and removes the injected control host. */
   remove(): void {
+    this.startButton.removeEventListener('click', this.handleStart);
     this.backwardButton.removeEventListener('click', this.handleBackwardStep);
     this.forwardButton.removeEventListener('click', this.handleForwardStep);
     this.revealButton.removeEventListener('click', this.handleReveal);
     this.stopButton.removeEventListener('click', this.handleStop);
     this.host.remove();
   }
+
+  /** Handles one explicit request to start collection from the page. */
+  private readonly handleStart = (): void => {
+    if (this.active || this.starting) return;
+    this.starting = true;
+    this.startButton.disabled = true;
+    this.status.textContent = '自動収集を開始しています…';
+    void this.options
+      .onStart()
+      .then((result) => {
+        if (result.ok) {
+          this.showActive(result.collectedCount);
+        } else {
+          this.showInactive(result.message);
+        }
+      })
+      .catch(() => this.showInactive('自動収集を開始できませんでした。'));
+  };
 
   /** Handles one explicit backward-scroll action. */
   private readonly handleBackwardStep = (): void => {

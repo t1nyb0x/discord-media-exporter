@@ -2,6 +2,36 @@
 
 このプロジェクトの利用者向け変更を記録します。バージョンは Semantic Versioning に従います。
 
+## [0.9.0] - 2026-07-17
+
+### Added
+
+- popupを開いた明示操作後、Discordチャンネル上へ停止状態の収集launcherを表示
+- ページ内ガイドの「自動収集を開始」からcollectorを開始する操作
+- popupとページ内ガイドで共有するguard付きcollector start処理
+- 任意設定「Discordで開始ボタンを常に表示」と、許可中のDiscordチャンネルへlauncherを自動表示する動的content script
+
+### Changed
+
+- 初回の可視候補登録をpopupからページ側collector controllerへ移し、popupが閉じても開始可能に変更
+- 停止後はページ内ガイドを削除せず、再開可能なinactive状態へ戻す
+- 常時表示をOFFにすると動的content scriptを登録解除し、Discordサイト権限を解放する
+
+### Fixed
+
+- 常時表示をOFFからONへ戻した際、popupから現在のDiscordチャンネルへ直接再注入し、リロードなしでlauncherを再表示
+
+### Security
+
+- 常時表示は明示的なON操作から`https://discord.com/*`の任意host permissionを許可した場合だけ有効化
+- 常時表示を許可しない場合は、拡張機能アイコンからpopupを開いた後の`activeTab`注入を維持
+- 開始ボタンを押すまで候補scan、MutationObserver、scroll・resize監視、候補登録を開始しない
+- 必須host permission、静的manifest content script、`<all_urls>`、外部依存を追加しない
+
+### Verification
+
+- Project ownerがChrome実機で任意権限の許可・解除、launcher自動表示、popupとの状態同期、二重起動防止を確認し、問題なしと判断
+
 ## [0.8.0] - 2026-07-17
 
 ### Added

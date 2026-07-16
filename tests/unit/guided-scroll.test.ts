@@ -61,47 +61,99 @@ describe('guided scroll collection', () => {
   });
 
   it('runs one step per explicit direction button click and stops from the page control', () => {
+    const onStart = vi.fn(async () => ({ ok: true as const, collectedCount: 0 }));
     const onStepBackward = vi.fn(() => ({ status: 'moved' as const, reachedStart: false }));
     const onStepForward = vi.fn(() => ({ status: 'moved' as const, reachedEnd: false }));
     const onRevealSpoilers = vi.fn(() => ({ revealed: 2, failed: 0 }));
     const onStop = vi.fn();
     const controls = new GuidedCollectionControls(document, {
+      onStart,
       onStepBackward,
       onStepForward,
       onRevealSpoilers,
       onStop,
     });
+    controls.showActive(0);
     const host = document.getElementById('discord-media-exporter-guided-controls')!;
     const buttons = host.shadowRoot!.querySelectorAll<HTMLButtonElement>('button');
 
-    buttons[0]!.click();
+    buttons[1]!.click();
     expect(onStepBackward).toHaveBeenCalledOnce();
     expect(host.shadowRoot!.textContent).toContain('1画面戻りました');
 
-    buttons[1]!.click();
+    buttons[2]!.click();
     expect(onStepForward).toHaveBeenCalledOnce();
     expect(host.shadowRoot!.textContent).toContain('1画面進みました');
 
-    buttons[2]!.click();
+    buttons[3]!.click();
     expect(onRevealSpoilers).toHaveBeenCalledOnce();
     expect(host.shadowRoot!.textContent).toContain('2件のスポイラー');
 
-    buttons[3]!.click();
+    buttons[4]!.click();
     expect(onStop).toHaveBeenCalledOnce();
 
     controls.setCollectedCount(500);
-    expect(buttons[0]!.disabled).toBe(true);
     expect(buttons[1]!.disabled).toBe(true);
+    expect(buttons[2]!.disabled).toBe(true);
     expect(host.shadowRoot!.textContent).toContain('500件');
     controls.setCollectedCount(10);
-    expect(buttons[0]!.disabled).toBe(false);
     expect(buttons[1]!.disabled).toBe(false);
+    expect(buttons[2]!.disabled).toBe(false);
     controls.remove();
     expect(document.getElementById('discord-media-exporter-guided-controls')).toBeNull();
   });
 
+  it('shows an inactive launcher and guards one asynchronous start action', async () => {
+    const onStart = vi.fn(async () => ({ ok: true as const, collectedCount: 4 }));
+    const controls = new GuidedCollectionControls(document, {
+      onStart,
+      onStepBackward: vi.fn(() => ({ status: 'at_start' as const })),
+      onStepForward: vi.fn(() => ({ status: 'at_end' as const })),
+      onRevealSpoilers: vi.fn(() => ({ revealed: 0, failed: 0 })),
+      onStop: vi.fn(),
+    });
+    const host = document.getElementById('discord-media-exporter-guided-controls')!;
+    const buttons = host.shadowRoot!.querySelectorAll<HTMLButtonElement>('button');
+
+    expect(buttons[0]!.hidden).toBe(false);
+    expect(buttons[1]!.hidden).toBe(true);
+    expect(host.shadowRoot!.textContent).toContain('自動収集は停止中');
+
+    buttons[0]!.click();
+    buttons[0]!.click();
+    await flushPromises();
+
+    expect(onStart).toHaveBeenCalledOnce();
+    expect(buttons[0]!.hidden).toBe(true);
+    expect(buttons[1]!.hidden).toBe(false);
+    expect(host.shadowRoot!.textContent).toContain('4件を収集中');
+    controls.remove();
+  });
+
+  it('keeps the launcher inactive when collection cannot start', async () => {
+    const controls = new GuidedCollectionControls(document, {
+      onStart: vi.fn(async () => ({ ok: false as const, message: '開始できませんでした。' })),
+      onStepBackward: vi.fn(() => ({ status: 'at_start' as const })),
+      onStepForward: vi.fn(() => ({ status: 'at_end' as const })),
+      onRevealSpoilers: vi.fn(() => ({ revealed: 0, failed: 0 })),
+      onStop: vi.fn(),
+    });
+    const host = document.getElementById('discord-media-exporter-guided-controls')!;
+    const buttons = host.shadowRoot!.querySelectorAll<HTMLButtonElement>('button');
+
+    buttons[0]!.click();
+    await flushPromises();
+
+    expect(buttons[0]!.hidden).toBe(false);
+    expect(buttons[0]!.disabled).toBe(false);
+    expect(buttons[1]!.hidden).toBe(true);
+    expect(host.shadowRoot!.textContent).toContain('開始できませんでした');
+    controls.remove();
+  });
+
   it('reports upper and lower boundaries without starting another scroll', () => {
     const controls = new GuidedCollectionControls(document, {
+      onStart: vi.fn(async () => ({ ok: true as const, collectedCount: 0 })),
       onStepBackward: () => ({ status: 'at_start' }),
       onStepForward: () => ({ status: 'at_end' }),
       onRevealSpoilers: () => ({ revealed: 0, failed: 0 }),
@@ -110,10 +162,11 @@ describe('guided scroll collection', () => {
     const host = document.getElementById('discord-media-exporter-guided-controls')!;
     const buttons = host.shadowRoot!.querySelectorAll<HTMLButtonElement>('button');
 
-    buttons[0]!.click();
+    controls.showActive(0);
+    buttons[1]!.click();
     expect(host.shadowRoot!.textContent).toContain('現在は上端');
 
-    buttons[1]!.click();
+    buttons[2]!.click();
     expect(host.shadowRoot!.textContent).toContain('現在は下端');
 
     controls.remove();
@@ -214,4 +267,8 @@ function rect(left: number, top: number, width: number, height: number): DOMRect
     height,
     toJSON: () => ({}),
   };
+}
+
+async function flushPromises(): Promise<void> {
+  for (let index = 0; index < 8; index += 1) await Promise.resolve();
 }

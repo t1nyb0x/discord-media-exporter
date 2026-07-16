@@ -19,6 +19,12 @@ import {
   startZipExport,
 } from '../src/platform/chrome/zip-export-manager';
 import {
+  disableDiscordLauncher,
+  hasDiscordLauncherPermission,
+  reconcileDiscordLauncherRegistration,
+} from '../src/platform/chrome/discord-launcher-registration';
+import { DISCORD_PAGE_ORIGIN } from '../src/shared/permissions';
+import {
   isExtensionRequest,
   type ExtensionRequest,
   type ExtensionResponse,
@@ -28,6 +34,22 @@ import { isOffscreenZipRequest, isZipBackgroundEvent } from '../src/shared/zip-m
 const OFFSCREEN_URL = `chrome-extension://${browser.runtime.id}/offscreen.html`;
 
 export default defineBackground(() => {
+  void reconcileDiscordLauncherRegistration().catch(() => undefined);
+  browser.runtime.onStartup.addListener(() => {
+    void reconcileDiscordLauncherRegistration().catch(() => undefined);
+  });
+  browser.runtime.onInstalled.addListener(() => {
+    void reconcileDiscordLauncherRegistration(true).catch(() => undefined);
+  });
+  browser.permissions.onAdded.addListener((permissions) => {
+    if (!permissions.origins?.includes(DISCORD_PAGE_ORIGIN)) return;
+    void reconcileDiscordLauncherRegistration().catch(() => undefined);
+  });
+  browser.permissions.onRemoved.addListener((permissions) => {
+    if (!permissions.origins?.includes(DISCORD_PAGE_ORIGIN)) return;
+    void reconcileDiscordLauncherRegistration(false, true).catch(() => undefined);
+  });
+
   browser.downloads.onChanged.addListener((delta) => {
     void handleDownloadChanged(delta);
     void handleZipDownloadChanged(delta);
@@ -89,6 +111,18 @@ async function dispatchExtensionRequest(message: ExtensionRequest): Promise<Exte
       case 'GET_EXPORT_STATUS': {
         const state = await getZipExportState();
         return { ok: true, type: 'ZIP_EXPORT_STATUS', state };
+      }
+      case 'GET_DISCORD_LAUNCHER_SETTING': {
+        const enabled = await hasDiscordLauncherPermission();
+        return { ok: true, type: 'DISCORD_LAUNCHER_SETTING', enabled };
+      }
+      case 'SYNC_DISCORD_LAUNCHER_SETTING': {
+        const enabled = await reconcileDiscordLauncherRegistration();
+        return { ok: true, type: 'DISCORD_LAUNCHER_SETTING', enabled };
+      }
+      case 'DISABLE_DISCORD_LAUNCHER_SETTING': {
+        const enabled = await disableDiscordLauncher();
+        return { ok: true, type: 'DISCORD_LAUNCHER_SETTING', enabled };
       }
     }
   } catch (error) {
