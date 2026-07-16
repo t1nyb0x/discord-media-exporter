@@ -2,6 +2,18 @@
 
 このプロジェクトの利用者向け変更を記録します。バージョンは Semantic Versioning に従います。
 
+## [0.4.1] - 2026-07-16
+
+### Fixed
+
+- 自動収集が継続中でも、時間を置いてpopupを再表示するとボタンがOFF表示になる問題
+- collector状態確認をChrome runtime messagingで確実に返すため、認識済み要求へPromiseで応答
+
+### Documentation
+
+- Phase 5の`0.3.0`実機確認完了と、`0.4.0`自動収集課題を分離
+- Phase 6のOPFS・ZIP64による全選択候補ZIP仕様とADR-0005を追加
+
 ## [0.4.0] - 2026-07-16
 
 ### Added

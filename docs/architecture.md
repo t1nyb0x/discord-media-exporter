@@ -222,3 +222,16 @@ DOM 変更時は extractor と fixture を更新し、domain と UI の変更を
 - `entrypoints/popup`: 保存形式選択、進捗、キャンセル。URL や Blob を保持しない
 
 offscreen document は ZIP バッチの間だけ存在し、Discord の DOM や認証情報へアクセスしません。生成途中のバイト列を `chrome.storage` へ保存せず、Chrome 終了や拡張機能更新をまたぐ再開は行いません。
+
+## 13. Phase 6: OPFSへのZIP64 streaming output（計画）
+
+Phase 5の`build-media-zip.ts`は入力responseを逐次処理しますが、出力ZIP chunkを`BlobPart[]`へ蓄積します。Phase 6ではこの出力境界を、OPFSのジョブ専用一時ファイルへ差し替えます。
+
+- `platform/zip`: ZIP64 writerの出力chunkを公開し、OPFS write完了まで次の入力chunk読込を進めない
+- `platform/chrome`: `navigator.storage.estimate()`、OPFS temp作成・write・close・getFile・deleteをadapter化する
+- `entrypoints/offscreen`: fetch → ZIP64 writer → OPFS writableのpipelineとキャンセルを所有する
+- `domain`: 固定件数・バイト上限を削除し、quota、temp write、ZIP64、cleanup errorを状態へ追加する
+- `background`: download完了・中断までtemp fileとBlob URLを追跡し、終端後に削除する
+- `popup`: 既知入力サイズ、未知件数、推定quota、入力・出力バイト数、長時間処理の注意を表示する
+
+Cache Storageは入力responseと完成ZIPを同時保持してピークdisk usageとI/Oを増やすため使用しません。OPFSもクォータ対象であるため、固定上限撤廃後もwrite failureを必ず処理します。詳細は[Phase 6仕様](large-zip-export.md)と[ADR-0005](adr/0005-stream-large-zip-to-opfs.md)に従います。

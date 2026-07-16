@@ -54,12 +54,18 @@
 10. [x] hardening 版の手動回帰テスト
 11. [x] unpacked 配布前の最終レビュー
 12. [ ] Dependabot または代替手段による依存関係監査
-13. [x] Phase 5 メディア ZIP の要件・技術設計・Proposed ADR
+13. [x] Phase 5 メディア ZIP の要件・技術設計・ADR-0003
 14. [x] WXT offscreenと`fflate` streaming ZIP writerの技術spike
 15. [x] ZIPドメイン、任意権限、UI、キャンセル、状態復元の実装
 16. [x] ZIP内容、上限、redirect、権限、状態遷移の自動テスト
-17. [ ] Chrome Stableでの25 / 50 / 100 MiB計測と実Discord手動確認
-18. [ ] ADR-0003の承認と`0.4.0`限定配布判定
+17. [x] Project ownerによる`0.3.0`メディアZIP出力の実機確認
+18. [x] ADR-0003の承認とPhase 5完了判定
+19. [x] `0.4.1`自動収集ボタン状態修正の実機回帰確認
+20. [x] Phase 6の全選択ZIP要件、OPFS設計、Accepted ADR-0005
+21. [ ] OPFS、Blob URL、downloadsの大容量技術spike
+22. [ ] ZIP64 writer選定と4 GiB境界テスト
+23. [ ] 固定上限の置き換え、quota表示、cleanup実装
+24. [ ] 101件・500件・1 GiB・4 GiB超のChrome Stable実測
 
 ## 5. ローカル確認手順
 

@@ -147,9 +147,22 @@ Phase 5 の追加項目:
 - [ ] 失敗・キャンセル・context 消失時に不完全な ZIP を保存しない
 - [ ] ZIP ライブラリのライセンス、lockfile、脆弱性、bundle をレビューした
 
+Phase 6 の追加項目:
+
+- [ ] 入力responseをCache Storage、IndexedDB、`chrome.storage`へ複製していない
+- [ ] ZIP64出力をOPFSへ逐次writeし、archive全体をJavaScript heapへ保持していない
+- [ ] quota・disk不足、write/close失敗、キャンセルで不完全ZIPを保存しない
+- [ ] 完了・失敗・キャンセル・download中断・次回起動でOPFS一時ファイルをcleanupする
+- [ ] OPFS内部名、完全なURL、ローカル保存パスを状態・ログへ残していない
+- [ ] `unlimitedStorage`を追加していない。追加する場合は別ADRと権限説明を承認した
+- [ ] ZIP64 writerのlicense、lockfile、脆弱性、bundle、4 GiB境界互換性をレビューした
+
 ## 8. 参考資料
 
 - [Discord Terms of Service](https://discord.com/terms)
 - [Discord: Automated User Accounts (Self-Bots)](https://support.discord.com/hc/en-us/articles/115002192352-Automated-User-Accounts-Self-Bots)
 - [Chrome Extensions: Declare permissions](https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions)
+- [Chrome Extensions: Storage and cookies](https://developer.chrome.com/docs/extensions/develop/concepts/storage-and-cookies)
+- [Chrome Extensions: Permissions list](https://developer.chrome.com/docs/extensions/reference/permissions-list)
+- [Chrome Developers: File System Access API / OPFS](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access)
 - [Chrome Extensions: Distribute your extension](https://developer.chrome.com/docs/extensions/how-to/distribute)

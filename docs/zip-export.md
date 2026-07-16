@@ -4,7 +4,10 @@
 
 この文書は Phase 5 で追加する「メディア ZIP」の要件、制約、設計、検証項目を定義します。WXT が生成する拡張機能の配布 ZIP とは別物です。この文書では次の用語を使い分けます。
 
-実装状況: 自動テストとproduction buildは完了しています。Chrome Stableでの容量別計測と実Discord手動確認は未完了です。
+実装状況: 自動テスト、production build、Project ownerによる実機でのメディアZIP出力確認が完了し、ADR-0003はAcceptedです。Chromeバージョン、OS、容量別測定値は共有されていないため、本書では推測して補完しません。
+
+> [!NOTE]
+> この文書はPhase 5で実装済みの固定上限方式を記録します。100件・50 MiB・100 MiBの固定上限を廃止する次期設計は[Phase 6: 全選択候補のディスクストリーミングZIP](large-zip-export.md)と[ADR-0005](adr/0005-stream-large-zip-to-opfs.md)を参照してください。Phase 6が実装・検証されるまでは本書の上限が有効です。
 
 - メディア ZIP: ユーザーが選択した Discord 添付を一つにまとめた保存物
 - 配布 ZIP: 拡張機能を unpacked install するためのリリース成果物
@@ -191,6 +194,8 @@ type ZipExportRequest =
 - ZIP ライブラリを使う場合は、ライセンス、lockfile、脆弱性、生成 bundle をレビューする
 - 実 Discord の権利が明確なテストメディアで手動確認する
 - Discord の規約と ADR-0001 の境界を再確認する
+
+2026-07-16にProject ownerから実機でメディアZIP出力を確認済みとの報告を受け、Phase 5を完了扱いとしました。上記のうち詳細値が未記録の項目は、将来再計測した場合に検証記録へ追記します。
 
 ## 10. 参考資料
 

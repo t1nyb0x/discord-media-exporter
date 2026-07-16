@@ -12,8 +12,10 @@
 - Phase 3: 安全な DOM 非対応、非表示要素、アクセシビリティ、500 件の候補上限を自動テスト済み
 - Phase 3: Project owner による Chrome 実機確認で問題がなく、完了
 - Phase 4: 少人数への unpacked 配布継続を ADR-0002 で決定し、限定保守へ移行
-- Phase 5: メディア ZIP出力、上限、キャンセル、権限解放、自動テストを実装済み
-- Phase 5 残作業: Chrome Stableでの25 / 50 / 100 MiB計測、実Discord手動確認、ADR-0003承認
+- Phase 5: `0.3.0`メディアZIP出力を実装・自動検証・実機確認し、ADR-0003をAcceptedとして完了
+- `0.4.1` follow-up: 自動収集ボタン状態復元を修正し、自動・実機回帰を完了
+- Phase 6: ZIP固定上限撤廃に向けたOPFS・ZIP64仕様を作成し、ADR-0005をAccepted
+- Phase 6 残作業: OPFS/downloadの大容量spike、ZIP64 writer選定、101件・500件・4 GiB超の実測
 - 継続課題: 未確認の画面バリエーション、依存関係監査、実ブラウザ E2E
 
 ## Phase 0: Discovery / Policy gate
@@ -51,7 +53,7 @@
 
 成果物:
 
-- ユーザー開始後の可視範囲自動収集
+- ユーザー操作による現在の可視範囲スキャン
 - 候補一覧、絞り込み、選択
 - 安全なファイル名と一括ダウンロード
 - 候補単位の進捗・失敗表示
@@ -106,7 +108,7 @@
 - CDN への任意ホスト権限と `offscreen` permission の説明
 - 件数・バイト数上限、キャンセル、全体失敗、状態復元
 - ZIP 内容、CRC、ファイル名衝突、権限拒否、ネットワーク異常の自動テスト
-- 25 / 50 / 100 MiB の性能・メモリ計測記録
+- 実機でのメディアZIP出力確認記録
 - [ADR-0003](adr/0003-generate-media-zip-locally.md)の承認記録
 
 実装順:
@@ -121,11 +123,66 @@
 
 - ZIP-01 から ZIP-12 と ZIP の受け入れ条件を満たす
 - 不完全な ZIP、上限超過、許可外通信、完全な URL のログ出力がない
-- Chrome Stable で上限までの安定性とキャンセルを確認する
-- 追加権限と依存関係を承認し、ADR-0003 を Accepted にする
+- Project ownerがChrome実機でメディアZIP出力を確認する
+- 追加権限と依存関係を承認し、ADR-0003をAcceptedにする
 - 限定配布向けのリリースノート、配布 ZIP、SHA-256、手動確認記録を作成する
 
-自動検証の結果と残るリリースゲートは[Phase 5 自動検証記録](reviews/phase5-automated-verification.md)を参照してください。Chrome実機では[メディアZIP手動テスト](testing/zip-export-checklist.md)を使用します。
+自動検証とProject ownerによる実機確認の記録は[Phase 5 自動検証記録](reviews/phase5-automated-verification.md)を参照してください。手動確認項目の詳細は[メディアZIP手動テスト](testing/zip-export-checklist.md)に残しています。
+
+## 0.4.0 / 0.4.1 follow-up: Automatic visible-media collection
+
+目的:
+
+- popupで一度開始した後、同じチャンネルの手動スクロール中に表示された候補を自動累積する
+- popup close/reopen、明示停止、チャンネル変更時停止、500件上限を扱う
+
+状態:
+
+- 実装と自動検証は完了
+- `0.4.0`で、収集継続中でもpopup再表示時にボタンがOFF表示になる問題を確認
+- runtime message responseをPromiseで返す修正を`0.4.1`へ実装
+- 自動回帰テストとProject ownerによる実機回帰はPass
+- `0.4.1`でfollow-upを完了
+
+問題の記録は[0.4.0自動収集機能の検証記録](reviews/0.4.0-automated-verification.md)、修正リリースの結果は[0.4.1リリース検証記録](reviews/0.4.1-release-verification.md)を参照してください。
+
+## Phase 6: Disk-streamed full-selection ZIP
+
+目的:
+
+- ZIP固有の100件・50 MiB・100 MiB固定上限を廃止し、選択した候補を全件処理する
+- archive全体をJavaScript heapへ保持せず、大容量処理でもChromeを安定させる
+- 「固定上限なし」と「物理的に無制限」を区別し、quota・disk不足を安全に扱う
+
+設計判断:
+
+- 入力responseをCache Storageへ保存する方式は、入力合計と完成ZIPの二重領域・追加I/Oが必要になるため採用しない
+- ZIP64 writerの出力をOPFS一時ファイルへ直接streaming writeする
+- 候補registryの500件上限は維持し、その範囲の全選択を一つのZIPで扱う
+- 初期実装では`unlimitedStorage`permissionを追加しない
+
+成果物:
+
+- [Phase 6 全選択候補のディスクストリーミングZIP仕様](large-zip-export.md)
+- [ADR-0005](adr/0005-stream-large-zip-to-opfs.md)に基づく技術spikeと実装検証
+- ZIP64 writer、OPFS adapter、backpressure、quota表示、cleanup
+- 101件・500件・1 GiB・4 GiB超・quota不足・disk不足の自動／手動検証記録
+
+実装順:
+
+1. OPFSへのchunk write、`getFile()`、Blob URL、`chrome.downloads`の大容量spike
+2. ZIP64 streaming writerの選定またはstore方式writerの境界実装
+3. domain状態・エラー、quota見積り、OPFS lifecycleとcleanup
+4. 現行100件・50 MiB・100 MiB上限の置き換えとpopup表示更新
+5. synthetic ZIP64境界テスト、Chrome Stable実測、security・permissionレビュー
+
+終了条件:
+
+- LZIP-01からLZIP-13を満たす
+- 101件と500件、4 GiB超を保存・展開できる
+- heap使用量がarchiveサイズに比例せず、writer→OPFSの未書き込み量が有界である
+- 全失敗・キャンセル・次回起動で一時ファイルと権限をcleanupする
+- 新しいpermissionなしで成立するか、追加permissionを別ADRで承認する
 
 ## MVP 後の候補
 
