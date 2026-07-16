@@ -2,7 +2,7 @@
 
 Discordで画面に表示した画像・動画・添付ファイルを収集し、個別またはZIPで保存するChrome拡張機能です。
 
-現在のバージョンは`0.6.0`です。Chrome Web Storeでは公開せず、GitHub ReleaseのZIPをDeveloper modeで読み込みます。
+現在のバージョンは`0.6.1`です。Chrome Web Storeでは公開せず、GitHub ReleaseのZIPをDeveloper modeで読み込みます。
 
 > [!CAUTION]
 > 保存するコンテンツの権利と[Discord利用規約](https://discord.com/terms)を確認し、自分が保存を許可されているメディアにだけ使用してください。
@@ -70,5 +70,5 @@ pnpm release:prepare
 - [開発ガイド](docs/development.md)
 - [コントリビューションガイド](docs/contributing.md)
 - [ロードマップ](docs/roadmap.md)
-- [0.6.0リリースノート](docs/release-notes-0.6.0.md)
+- [0.6.1リリースノート](docs/release-notes-0.6.1.md)
 - [ADR一覧](docs/adr/)
