@@ -1,8 +1,12 @@
 # ADR-0003: メディア ZIP を拡張機能内で生成する
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-07-15
 - Decision owners: Project owner
+- Accepted: 2026-07-16
+
+> [!NOTE]
+> 本ADRはPhase 5のメモリ内Blob方式を扱います。固定上限を廃止し、ZIP64をOPFSへ直接書き込むPhase 6方針は[ADR-0005](0005-stream-large-zip-to-opfs.md)でAcceptedになりました。Phase 6が実装・検証されるまでは本ADRのPhase 5上限が有効です。
 
 ## Context
 
@@ -10,7 +14,7 @@
 
 現行方式は `chrome.downloads` に CDN URL を渡しており、拡張機能自身は response body を読みません。ZIP を生成するにはこのデータ境界が変わるため、保存形式だけの UI 変更として扱わず、権限と処理場所を決定する必要があります。
 
-## Proposed decision
+## Decision
 
 個別保存を維持したまま、ユーザーが明示的に選んだ場合だけメディア ZIP を拡張機能内で生成します。
 
@@ -22,9 +26,9 @@
 - 取得時は認証情報を付与せず、許可ホストと attachment path を redirect 後にも再検証する
 - 外部 ZIP サービス、クラウド保存、リモートコードを使わない
 
-詳細は[メディア ZIP 出力仕様](../zip-export.md)に従います。この ADR は、権限説明、メモリ計測、依存ライブラリのレビュー方法を Project owner が承認した時点で Accepted に変更します。
+詳細は[メディア ZIP 出力仕様](../zip-export.md)に従います。
 
-実装spikeでは`fflate 0.8.3`のstreaming APIとWXTのunlisted offscreen pageで成立することを自動テスト・production buildまで確認しました。Chrome Stableでの25 / 50 / 100 MiB計測と実Discord手動確認が完了するまでStatusはProposedを維持します。
+実装spikeでは`fflate 0.8.3`のstreaming APIとWXTのunlisted offscreen pageで成立することを自動テスト・production buildまで確認しました。Project ownerが実機でメディアZIP出力を確認したため、この設計判断をAcceptedとします。実機のChromeバージョン、OS、容量別測定値は検証記録に推測で補完せず、提供された範囲だけを記録します。
 
 ## Consequences
 

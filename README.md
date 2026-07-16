@@ -7,8 +7,8 @@
 
 ## 現在の状態
 
-- フェーズ: Phase 5 / Media ZIP export verification
-- 実装: `0.4.0` の自動収集・ZIP出力と自動検証が完了。Chrome実機確認は未完了
+- フェーズ: Phase 6 / Disk-streamed full-selection ZIP design
+- 実装: `0.3.0`のメディアZIPと`0.4.1`の自動収集ボタン状態修正は実機確認済み。Phase 6は文書設計中
 - 対象: Google Chrome、Manifest V3
 - 最初の対象画面: `https://discord.com/channels/*`
 - 目的: 表示中メディアの保存支援
@@ -38,13 +38,17 @@
 - 候補の選択とダウンロード
 - `0.2.0` 限定配布候補の回帰確認
 
+2026-07-16 に確認済み:
+
+- `0.3.0`メディアZIP出力の実機動作
+
 追加検証が必要:
 
 - スポイラー付き添付などの画面バリエーション
 - ネットワーク切断や期限切れ URL などの異常系
 - Chrome/Discord の更新後の実機回帰
-- ZIP出力の25 / 50 / 100 MiBメモリ計測
-- 実DiscordでのZIP保存、展開、権限解放
+- Phase 6のOPFS・ZIP64技術spikeと大容量計測
+- Phase 6のOPFS・ZIP64技術spikeと大容量計測
 
 Phase 5の実装方針:
 
@@ -87,17 +91,23 @@ pnpm build
 - [開発ガイド](docs/development.md)
 - [インストール・更新ガイド](docs/installation.md)
 - [0.2.0 リリースノート](docs/release-notes-0.2.0.md)
-- [0.4.0 リリースノート](docs/release-notes-0.4.0.md)
 - [0.3.0 リリースノート](docs/release-notes-0.3.0.md)
+- [0.4.0 リリースノート](docs/release-notes-0.4.0.md)
+- [0.4.1 リリースノート](docs/release-notes-0.4.1.md)
 - [限定配布テストチェックリスト](docs/testing/limited-beta-checklist.md)
 - [Phase 5 メディアZIP手動テスト](docs/testing/zip-export-checklist.md)
 - [Phase 5 自動検証記録](docs/reviews/phase5-automated-verification.md)
+- [0.4.0 自動収集機能の検証記録](docs/reviews/0.4.0-automated-verification.md)
+- [0.4.1 リリース検証記録](docs/reviews/0.4.1-release-verification.md)
+- [Phase 6 全選択候補のディスクストリーミングZIP](docs/large-zip-export.md)
 - [保守・更新方針](docs/maintenance.md)
 - [ロードマップ](docs/roadmap.md)
 - [メディア ZIP 出力仕様](docs/zip-export.md)
 - [ADR-0001: 表示中メディアの保存支援](docs/adr/0001-user-initiated-dom-export.md)
 - [ADR-0002: 少人数への unpacked 配布を継続する](docs/adr/0002-continue-limited-unpacked-distribution.md)
 - [ADR-0003: メディア ZIP を拡張機能内で生成する](docs/adr/0003-generate-media-zip-locally.md)
+- [ADR-0004: ユーザー開始後の表示中メディア自動収集](docs/adr/0004-observe-visible-media-after-user-start.md)
+- [ADR-0005: 大容量ZIPをOPFSへ直接ストリーミングする](docs/adr/0005-stream-large-zip-to-opfs.md)
 
 ## リリース
 

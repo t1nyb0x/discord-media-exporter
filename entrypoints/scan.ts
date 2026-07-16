@@ -1,7 +1,7 @@
 import { defineUnlistedScript } from 'wxt/utils/define-unlisted-script';
 import { browser } from 'wxt/browser';
 import { VisibleMediaCollector } from '../src/extractors/discord/visible-media-collector';
-import { isCollectorRequest } from '../src/shared/collector-messages';
+import { isCollectorRequest, type CollectorResponse } from '../src/shared/collector-messages';
 
 interface CollectorController {
   collector: VisibleMediaCollector | null;
@@ -47,13 +47,13 @@ function getCollectorController(): CollectorController {
   globalThis.__discordMediaExporterCollector__ ??= { collector: null, listenerRegistered: false };
   const controller = globalThis.__discordMediaExporterCollector__;
   if (!controller.listenerRegistered) {
-    browser.runtime.onMessage.addListener((message): { active: boolean } | undefined => {
+    browser.runtime.onMessage.addListener((message): Promise<CollectorResponse> | undefined => {
       if (!isCollectorRequest(message)) return undefined;
       if (message.type === 'STOP_MEDIA_COLLECTOR') {
         controller.collector?.stop();
         controller.collector = null;
       }
-      return { active: controller.collector?.isActive() ?? false };
+      return Promise.resolve({ active: controller.collector?.isActive() ?? false });
     });
     controller.listenerRegistered = true;
   }

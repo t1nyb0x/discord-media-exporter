@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import popupFixture from '../../entrypoints/popup/index.html?raw';
 import { stableCandidateId } from '../../src/domain/id';
 import type { MediaCandidate } from '../../src/domain/media';
@@ -24,6 +24,10 @@ vi.mock('wxt/browser', () => ({
 }));
 
 describe('popup scan collection', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
   afterEach(() => {
     vi.clearAllTimers();
     vi.useRealTimers();
@@ -108,6 +112,56 @@ describe('popup scan collection', () => {
     expect(browserMocks.sendMessage).toHaveBeenCalledWith({ type: 'CLEAR_SCAN_COLLECTION', scope });
     expect(document.getElementById('results')?.hidden).toBe(true);
     expect(document.getElementById('candidate-count')?.textContent).toBe('0件');
+  });
+
+  it('restores the active collector state when the popup is reopened later', async () => {
+    vi.useFakeTimers();
+    browserMocks.queryTabs.mockResolvedValue([{ id: 1, url: scope }]);
+    browserMocks.sendTabMessage.mockImplementation(
+      async (_tabId: number, request: { type: string }) => ({
+        active: request.type === 'GET_MEDIA_COLLECTOR_STATUS',
+      }),
+    );
+    browserMocks.sendMessage.mockImplementation(async (request: { type: string }) => {
+      switch (request.type) {
+        case 'GET_SCAN_COLLECTION':
+          return {
+            ok: true,
+            type: 'SCAN_COLLECTION',
+            collection: { scope, candidates: [firstCandidate] },
+          };
+        case 'GET_DOWNLOAD_STATUS':
+          return { ok: true, type: 'DOWNLOAD_STATUS', state: { items: [] } };
+        case 'GET_EXPORT_STATUS':
+          return {
+            ok: true,
+            type: 'ZIP_EXPORT_STATUS',
+            state: {
+              status: 'idle',
+              totalItems: 0,
+              completedItems: 0,
+              processedBytes: 0,
+            },
+          };
+        default:
+          return { ok: false, error: 'unexpected' };
+      }
+    });
+
+    loadPopupFixture();
+    await import('../../entrypoints/popup/main');
+    await flushPromises();
+
+    expect(document.getElementById('scan-button')?.textContent).toBe('自動収集を停止');
+
+    document.getElementById('scan-button')?.click();
+    await flushPromises();
+
+    expect(browserMocks.sendTabMessage).toHaveBeenCalledWith(1, {
+      type: 'STOP_MEDIA_COLLECTOR',
+    });
+    expect(browserMocks.executeScript).not.toHaveBeenCalled();
+    expect(document.getElementById('scan-button')?.textContent).toBe('自動収集を開始');
   });
 });
 
