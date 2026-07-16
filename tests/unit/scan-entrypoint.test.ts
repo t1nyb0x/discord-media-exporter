@@ -59,6 +59,7 @@ describe('scan entrypoint collector status', () => {
       main(): unknown;
     };
     definition.main();
+    expect(document.getElementById('discord-media-exporter-guided-controls')).not.toBeNull();
 
     const listener = browserMocks.addListener.mock.calls[0]?.[0] as
       ((message: unknown) => unknown) | undefined;
@@ -68,8 +69,15 @@ describe('scan entrypoint collector status', () => {
     expect(statusResponse).toBeInstanceOf(Promise);
     await expect(statusResponse).resolves.toEqual({ active: true });
 
+    await expect(listener!({ type: 'SET_MEDIA_COLLECTOR_COUNT', count: 500 })).resolves.toEqual({
+      active: true,
+    });
+    const host = document.getElementById('discord-media-exporter-guided-controls')!;
+    expect(host.shadowRoot!.querySelector<HTMLButtonElement>('button')!.disabled).toBe(true);
+
     const stopResponse = listener!({ type: 'STOP_MEDIA_COLLECTOR' });
     expect(stopResponse).toBeInstanceOf(Promise);
     await expect(stopResponse).resolves.toEqual({ active: false });
+    expect(document.getElementById('discord-media-exporter-guided-controls')).toBeNull();
   });
 });

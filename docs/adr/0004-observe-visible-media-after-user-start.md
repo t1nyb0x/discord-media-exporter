@@ -1,5 +1,7 @@
 # ADR-0004: ユーザー開始後の表示中メディア自動収集
 
+> ユーザーの明示操作ごとに一画面だけ遡るPhase 7のガイド付き収集は[ADR-0006](0006-guide-one-scroll-step-per-user-action.md)で追加判断しました。無人の連続自動スクロールは引き続き採用しません。
+
 - Status: Accepted
 - Date: 2026-07-15
 - Decision owners: Project owner

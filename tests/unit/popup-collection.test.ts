@@ -97,6 +97,10 @@ describe('popup scan collection', () => {
     expect(document.querySelectorAll('#candidate-list li')).toHaveLength(2);
     expect(document.getElementById('candidate-count')?.textContent).toBe('2件');
     expect(document.getElementById('notice')?.textContent).toContain('1件を追加');
+    expect(browserMocks.sendTabMessage).toHaveBeenCalledWith(1, {
+      type: 'SET_MEDIA_COLLECTOR_COUNT',
+      count: 2,
+    });
 
     document.getElementById('scan-button')?.click();
     await flushPromises();

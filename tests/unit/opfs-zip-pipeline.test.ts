@@ -55,7 +55,7 @@ describe('OPFS ZIP pipeline', () => {
     });
     const archive = unzipSync(new Uint8Array(await result.blob.arrayBuffer()));
 
-    expect(result.blob).toBeInstanceOf(File);
+    expect(result.blob.type).toBe('application/zip');
     expect(Object.keys(archive)).toHaveLength(101);
     expect(strFromU8(archive['file-100.txt']!)).toBe('content:file-100.txt');
     expect(writable.write).toHaveBeenCalled();

@@ -17,6 +17,7 @@ export class VisibleMediaCollector {
     private readonly windowObject: Window,
     private readonly publish: (result: SuccessfulScanResult) => void | Promise<void>,
     private readonly debounceMs = DEFAULT_DEBOUNCE_MS,
+    private readonly onStopped?: () => void,
   ) {}
 
   start(): ScanResult {
@@ -41,6 +42,7 @@ export class VisibleMediaCollector {
   }
 
   stop(): void {
+    const wasActive = this.active;
     this.active = false;
     this.scope = null;
     this.documentObject.removeEventListener('scroll', this.scheduleScan, true);
@@ -50,6 +52,7 @@ export class VisibleMediaCollector {
     this.observer = null;
     if (this.timer !== undefined) this.windowObject.clearTimeout(this.timer);
     this.timer = undefined;
+    if (wasActive) this.onStopped?.();
   }
 
   isActive(): boolean {

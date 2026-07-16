@@ -7,8 +7,8 @@
 
 ## 現在の状態
 
-- フェーズ: Phase 6 / Disk-streamed full-selection ZIP implementation
-- 実装: `0.5.0`でZIP64をOPFSへ逐次出力する方式へ移行し、`0.5.1`で4 GiB・65,536 entry・容量不足の自動境界検証を追加。Chrome Stable実測は継続中
+- フェーズ: Phase 7 / Guided one-page collection
+- 実装: `0.6.0`でユーザー操作ごとに一画面だけ古い投稿へ遡るガイド付き収集を追加。無人の連続スクロールは行わない
 - 対象: Google Chrome、Manifest V3
 - 最初の対象画面: `https://discord.com/channels/*`
 - 目的: 表示中メディアの保存支援
@@ -19,6 +19,8 @@
 
 - `activeTab` を使った明示的な可視範囲スキャン
 - 一度開始すると、同じチャンネルを手動スクロールする間に表示された候補を自動追加する可視範囲監視
+- Discord画面内の明示操作ごとに古い投稿へ一画面だけ遡るガイド付き収集
+- 明示操作時だけ現在表示中のスポイラーを解除するガイドbutton
 - 最大500件のセッション内候補収集と明示的な停止・クリア
 - Discord 添付 URL の allowlist 検証と重複排除
 - 画像、動画、その他添付の一覧・絞り込み・選択
@@ -32,6 +34,7 @@
 - store方式ZIP64 writerとOPFS一時ファイルへのbackpressure付き逐次出力
 - 最大3件の先行取得、1 MiBのOPFS書き込み集約、500ms単位の進捗更新
 - OPFS推定空き容量、入力・ZIP出力バイト数、quota・一時書き込み失敗の表示
+- ZIP内ファイルを取得順の`001_`連番で格納し、完成Blobを`application/zip`として保存
 - ZIP終了時の任意CDN権限解放
 
 2026-07-15 に確認済み:
@@ -44,6 +47,7 @@
 2026-07-16 に確認済み:
 
 - `0.3.0`メディアZIP出力の実機動作
+- `0.6.0`ガイド付き一画面収集の実機動作
 
 追加検証が必要:
 
@@ -68,12 +72,13 @@ Phase 6の実装方針:
 1. Discord のチャンネルをブラウザで開く
 2. 拡張機能のアイコンを押す
 3. 「自動収集を開始」を押す
-4. Discordを自分でスクロールする。画面に現れた候補は同じチャンネルの一覧へ自動追加される
-5. 拡張機能を再度開き、必要なら自動収集を停止する
-6. 累積された一覧から保存対象を選択する
-7. 個別保存またはZIP保存でローカルへ保存する
+4. Discord画面右下の「1画面戻る」を押すか、自分でスクロールする
+5. 画面に現れた候補は同じチャンネルの一覧へ自動追加される
+6. 拡張機能を再度開き、必要なら自動収集を停止する
+7. 累積された一覧から保存対象を選択する
+8. 個別保存またはZIP保存でローカルへ保存する
 
-開始後の監視では、その時点で画面内に見えている項目だけを扱います。自動スクロール、Discord の非公開 API の呼び出し、ユーザートークンや Cookie の取得、定期巡回は行いません。別チャンネルへの移動、再読み込み、タブ終了、または停止操作で監視を終了します。候補URLは同じチャンネルの収集結果としてChromeセッション中だけ保持し、UIから明示的にクリアできます。
+開始後の監視では、その時点で画面内に見えている項目だけを扱います。ユーザー操作なしの連続自動スクロール、Discord の非公開 API の呼び出し、ユーザートークンや Cookie の取得、定期巡回は行いません。別チャンネルへの移動、再読み込み、タブ終了、または停止操作で監視を終了します。候補URLは同じチャンネルの収集結果としてChromeセッション中だけ保持し、UIから明示的にクリアできます。
 
 ## 開発とローカルインストール
 
@@ -100,6 +105,7 @@ pnpm build
 - [0.4.1 リリースノート](docs/release-notes-0.4.1.md)
 - [0.5.0 リリースノート](docs/release-notes-0.5.0.md)
 - [0.5.1 リリースノート](docs/release-notes-0.5.1.md)
+- [0.6.0 リリースノート](docs/release-notes-0.6.0.md)
 - [限定配布テストチェックリスト](docs/testing/limited-beta-checklist.md)
 - [Phase 5 メディアZIP手動テスト](docs/testing/zip-export-checklist.md)
 - [Phase 5 自動検証記録](docs/reviews/phase5-automated-verification.md)
@@ -107,7 +113,9 @@ pnpm build
 - [0.4.1 リリース検証記録](docs/reviews/0.4.1-release-verification.md)
 - [Phase 6 自動検証記録](docs/reviews/phase6-automated-verification.md)
 - [0.5.1 自動境界検証記録](docs/reviews/0.5.1-automated-verification.md)
+- [Phase 7 自動検証記録](docs/reviews/phase7-automated-verification.md)
 - [Phase 6 全選択候補のディスクストリーミングZIP](docs/large-zip-export.md)
+- [Phase 7 ガイド付き一画面収集](docs/guided-scroll-collection.md)
 - [保守・更新方針](docs/maintenance.md)
 - [ロードマップ](docs/roadmap.md)
 - [メディア ZIP 出力仕様](docs/zip-export.md)
@@ -116,6 +124,8 @@ pnpm build
 - [ADR-0003: メディア ZIP を拡張機能内で生成する](docs/adr/0003-generate-media-zip-locally.md)
 - [ADR-0004: ユーザー開始後の表示中メディア自動収集](docs/adr/0004-observe-visible-media-after-user-start.md)
 - [ADR-0005: 大容量ZIPをOPFSへ直接ストリーミングする](docs/adr/0005-stream-large-zip-to-opfs.md)
+- [ADR-0006: ユーザー操作ごとに一画面だけ遡る](docs/adr/0006-guide-one-scroll-step-per-user-action.md)
+- [ADR-0007: 明示操作時だけ表示中のスポイラーを解除する](docs/adr/0007-reveal-visible-spoilers-on-explicit-action.md)
 
 ## リリース
 

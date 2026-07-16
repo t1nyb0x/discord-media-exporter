@@ -7,10 +7,10 @@ import {
   inferMediaKind,
   normalizeDiscordAttachmentUrl,
 } from '../../domain/url';
+import { findMessageViewport } from './message-viewport';
 import { intersectRects, isElementVisibleInRect, type RectLike } from './visibility';
 
 const MAX_CANDIDATES = 500;
-const MESSAGE_VIEWPORT_SELECTORS = ['[data-list-id="chat-messages"]', 'main [role="log"]'] as const;
 
 export function extractVisibleDiscordMedia(
   documentObject: Document,
@@ -53,14 +53,6 @@ export function extractVisibleDiscordMedia(
       message: '表示中メディアの確認に失敗しました。',
     };
   }
-}
-
-function findMessageViewport(documentObject: Document): Element | null {
-  for (const selector of MESSAGE_VIEWPORT_SELECTORS) {
-    const element = documentObject.querySelector(selector);
-    if (element !== null) return element;
-  }
-  return null;
 }
 
 function createVisibleViewport(messageViewport: Element, windowObject: Window): RectLike | null {

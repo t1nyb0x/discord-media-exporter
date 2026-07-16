@@ -17,6 +17,9 @@
 - Phase 6: store方式ZIP64 writer、OPFS逐次出力、固定上限撤廃、quota表示、cleanupを`0.5.0`へ実装し、自動検証を完了
 - Phase 6 follow-up: `0.5.1`で4 GiB・65,536 entry・101件OPFS pipeline・容量不足・cleanup再試行を自動検証
 - Phase 6 残作業: Chrome Stableでの101件・500件・1 GiB・4 GiB境界、quota・disk不足、OS展開互換性の実測と既知入力サイズ概算のfollow-up
+- Phase 7: ユーザー操作ごとに一画面だけ遡るガイド付き収集を`0.6.0`へ実装し、ADR-0006をAccepted
+- Phase 7: Project ownerがガイド付き収集を実機確認済み。ZIP取得順と`.zip`出力の修正後回帰を残す
+- Phase 7 follow-up: 明示操作による表示中スポイラー解除とADR-0007を実装
 - 継続課題: 未確認の画面バリエーション、依存関係監査、実ブラウザ E2E
 
 ## Phase 0: Discovery / Policy gate
@@ -198,6 +201,30 @@
 - 全失敗・キャンセル・次回起動で一時ファイルと権限をcleanupする
 - 新しいpermissionなしで成立するか、追加permissionを別ADRで承認する
 
+## Phase 7: Guided one-page collection
+
+目的:
+
+- 手動スクロールの負担を減らしつつ、各移動をユーザーの明示操作に限定する
+- 無人の履歴巡回、連続scroll、通常ユーザーアカウント自動化を避ける
+
+成果物:
+
+- [Phase 7 ガイド付き一画面収集仕様](guided-scroll-collection.md)
+- [ADR-0006](adr/0006-guide-one-scroll-step-per-user-action.md)
+- Shadow DOMのページ内ガイド、一画面移動、停止、500件上限
+- 可視範囲・aria-label・最大50件に限定したスポイラー解除
+- scroll container、移動回数、上端、停止、チャンネル変更の自動テスト
+
+終了条件:
+
+- GSC-01からGSC-10を満たす
+- 一回のclickに対して一回だけscrollする
+- timer・再帰・連続loopによる無人scroll経路がない
+- 実Discordでガイド表示、古い方向への移動、停止を確認する
+- ZIP内の取得順連番と`.zip`出力を実機で再確認する
+- 実Discordで可視スポイラーだけが解除されることを確認する
+
 ## MVP 後の候補
 
 - 投稿時刻やメディア種別によるローカル整理
@@ -206,4 +233,4 @@
 - 英語 UI
 - 対応画面の追加
 
-自動スクロール、定期巡回、複数チャンネルの無人収集、ユーザートークン利用は将来候補に含めません。[ADR-0004](adr/0004-observe-visible-media-after-user-start.md)で、ユーザー開始後の同一チャンネルに限る可視範囲監視を採用しています。さらなる自動化は規約・権限・プライバシーの再レビューを必要とします。
+無人の連続自動スクロール、定期巡回、複数チャンネルの無人収集、ユーザートークン利用は将来候補に含めません。[ADR-0004](adr/0004-observe-visible-media-after-user-start.md)と[ADR-0006](adr/0006-guide-one-scroll-step-per-user-action.md)に基づき、ユーザー開始後の同一チャンネルと、明示操作ごとの一画面移動に限定します。さらなる自動化は規約・権限・プライバシーの再レビューを必要とします。

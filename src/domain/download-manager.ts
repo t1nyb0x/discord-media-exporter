@@ -117,16 +117,22 @@ export class DownloadManager {
 
   async getRegisteredCandidates(candidateIds: string[]): Promise<MediaCandidate[]> {
     await this.ensureInitialized();
-    const uniqueIds = [...new Set(candidateIds)];
-    if (uniqueIds.length === 0) throw new Error('保存するメディアを選択してください。');
+    const requestedIds = new Set(candidateIds);
+    if (requestedIds.size === 0) throw new Error('保存するメディアを選択してください。');
 
-    return uniqueIds.map((candidateId) => {
-      const candidate = this.candidateRegistry.get(candidateId);
-      if (candidate === undefined || !isValidMediaCandidate(candidate)) {
+    const candidates: MediaCandidate[] = [];
+    for (const candidate of this.candidateRegistry.values()) {
+      if (!requestedIds.has(candidate.id)) continue;
+      if (!isValidMediaCandidate(candidate)) {
         throw new Error('メディア候補の有効期限が切れました。再スキャンしてください。');
       }
-      return { ...candidate };
-    });
+      candidates.push({ ...candidate });
+      requestedIds.delete(candidate.id);
+    }
+    if (requestedIds.size > 0) {
+      throw new Error('メディア候補の有効期限が切れました。再スキャンしてください。');
+    }
+    return candidates;
   }
 
   async hasActiveDownloads(): Promise<boolean> {

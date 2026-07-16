@@ -235,3 +235,18 @@ Phase 5の`build-media-zip.ts`は入力responseを逐次処理しても、出力
 - `popup`: 推定quota、入力・出力バイト数、長時間処理の注意を表示する
 
 Cache Storageは入力responseと完成ZIPを同時保持してピークdisk usageとI/Oを増やすため使用しません。OPFSもクォータ対象であるため、固定上限撤廃後もwrite failureを必ず処理します。詳細は[Phase 6仕様](large-zip-export.md)と[ADR-0005](adr/0005-stream-large-zip-to-opfs.md)に従います。
+
+候補registryは`Map`の挿入順を取得順として保持します。ZIP開始時はcheckboxの選択順ではなくregistry順で対象を解決し、`001_`から始まる連番をentry名へ付けます。OPFSの`File.type`は空になる場合があるため、完成時に`application/zip`のBlobへ正規化してからBlob URLを作成します。
+
+## 14. Phase 7: ガイド付き一画面収集
+
+`scan.ts`が既存の`VisibleMediaCollector`を開始した後、Discord documentの`body`直下へShadow DOMのガイドhostを追加します。ガイドはDiscordのメッセージDOM外に置き、media extractorの対象に含めません。
+
+- `message-viewport.ts`: message viewportとscrollable ancestorを特定
+- `guided-scroll.ts`: 一回の操作で表示高の80%だけ古い方向へ移動し、ガイドUIを管理
+- `visible-media-collector.ts`: scroll・DOM変更後の可視範囲scanと停止callback
+- `scan.ts`: collectorとガイドのlifecycle、backgroundへの候補登録を接続
+
+ガイドはtimerや連続loopを所有しません。button clickから同期的に一回だけ`scrollTop`を変更し、その後の収集は既存collectorのdebounceとMutationObserverに委ねます。詳細は[Phase 7仕様](guided-scroll-collection.md)と[ADR-0006](adr/0006-guide-one-scroll-step-per-user-action.md)に従います。
+
+スポイラー解除も同じガイド内の独立したbuttonから一回だけ実行します。message viewport内の`button[aria-label]`と`[role="button"][aria-label]`から、可視かつaria-labelに`spoiler`・`スポイラー`・`ネタバレ`を含み、解除済みでない要素を最大50件clickします。class名による推測、画面外操作、自動反復は行いません。詳細は[ADR-0007](adr/0007-reveal-visible-spoilers-on-explicit-action.md)に従います。
