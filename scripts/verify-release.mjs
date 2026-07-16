@@ -12,6 +12,7 @@ const expectedOptionalHostPermissions = [
   'https://media.discordapp.net/*',
 ];
 const requiredFiles = [
+  'LICENSE',
   'THIRD_PARTY_NOTICES.txt',
   'background.js',
   'manifest.json',
@@ -67,6 +68,14 @@ export async function verifyRelease() {
   }
 
   const packageJson = JSON.parse(await readFile(path.join(projectRoot, 'package.json'), 'utf8'));
+  if (packageJson.license !== 'MIT') {
+    throw new Error(`Unexpected package license: ${packageJson.license ?? 'missing'}.`);
+  }
+  const sourceLicense = await readFile(path.join(projectRoot, 'LICENSE'), 'utf8');
+  const packagedLicense = await readFile(path.join(outputDirectory, 'LICENSE'), 'utf8');
+  if (packagedLicense !== sourceLicense) {
+    throw new Error('Packaged LICENSE does not match the repository LICENSE.');
+  }
   if (manifest.version !== packageJson.version) {
     throw new Error(
       `Manifest version ${manifest.version} does not match package version ${packageJson.version}.`,

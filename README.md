@@ -100,3 +100,7 @@ pnpm release:prepare
 - [変更履歴](CHANGELOG.md)
 - [ガイド付き収集](docs/guided-scroll-collection.md)
 - [ADR一覧](docs/adr/)
+
+## ライセンス
+
+このプロジェクトは[MIT License](LICENSE)で公開しています。配布ZIPにも同じライセンス本文を同梱します。依存ライブラリの通知は`THIRD_PARTY_NOTICES.txt`を参照してください。
