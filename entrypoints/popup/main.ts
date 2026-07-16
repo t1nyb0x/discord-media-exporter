@@ -100,6 +100,7 @@ async function toggleDiscordLauncherSetting(): Promise<void> {
       const response = await sendRequest({ type: 'SYNC_DISCORD_LAUNCHER_SETTING' });
       const enabled = launcherSettingEnabled(response);
       launcherSettingToggle.checked = enabled;
+      if (enabled) await showLauncherInActiveDiscordTab();
       setLauncherSettingStatus(
         enabled
           ? 'ON: Discordチャンネルを開くと開始ボタンを表示します。'
@@ -121,6 +122,20 @@ async function toggleDiscordLauncherSetting(): Promise<void> {
   } finally {
     launcherSettingToggle.disabled = false;
   }
+}
+
+/** Immediately restores the launcher in the active Discord tab after the setting is enabled. */
+async function showLauncherInActiveDiscordTab(): Promise<boolean> {
+  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  if (
+    tab?.id === undefined ||
+    typeof tab.url !== 'string' ||
+    discordChannelScope(tab.url) === null
+  ) {
+    return false;
+  }
+  await ensurePageLauncher(tab.id);
+  return true;
 }
 
 /** Restores the launcher setting from the optional Discord permission state. */

@@ -272,6 +272,17 @@ describe('popup scan collection', () => {
     });
     expect(toggle.checked).toBe(false);
     expect(document.getElementById('launcher-setting-status')?.textContent).toContain('OFF');
+
+    toggle.checked = true;
+    toggle.dispatchEvent(new Event('change'));
+    await flushPromises();
+
+    expect(toggle.checked).toBe(true);
+    expect(browserMocks.executeScript).toHaveBeenLastCalledWith({
+      target: { tabId: 1 },
+      files: ['scan.js'],
+    });
+    expect(browserMocks.executeScript).toHaveBeenCalledTimes(3);
   });
 });
 

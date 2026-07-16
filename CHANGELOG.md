@@ -19,7 +19,7 @@
 
 ### Fixed
 
-- 常時表示をOFFからONへ戻した際、既に開いているDiscordチャンネルにもリロードなしでlauncherを再表示
+- 常時表示をOFFからONへ戻した際、popupから現在のDiscordチャンネルへ直接再注入し、リロードなしでlauncherを再表示
 
 ### Security
 
