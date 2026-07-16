@@ -69,7 +69,7 @@ function createVisibleViewport(messageViewport: Element, windowObject: Window): 
   return intersectRects(messageViewport.getBoundingClientRect(), browserViewport);
 }
 
-/** Collects and deduplicates visible anchor and standalone media candidates. */
+/** Collects and deduplicates visible candidates in their message DOM order. */
 function collectCandidates(
   messageViewport: Element,
   visibleViewport: RectLike,
@@ -77,51 +77,67 @@ function collectCandidates(
 ): MediaCandidate[] {
   const candidatesByIdentity = new Map<string, MediaCandidate>();
 
-  for (const anchor of messageViewport.querySelectorAll<HTMLAnchorElement>('a[href]')) {
-    const url = normalizeDiscordAttachmentUrl(anchor.href, windowObject.location.href);
-    if (url === null) continue;
-
-    const mediaElement = anchor.querySelector('video, img');
-    const visibilityElement = mediaElement ?? anchor;
-    if (!isElementVisibleInRect(visibilityElement, visibleViewport, windowObject)) continue;
-
-    const source: CandidateSource =
-      mediaElement?.tagName === 'VIDEO'
-        ? 'video'
-        : mediaElement?.tagName === 'IMG'
-          ? 'image'
-          : 'anchor';
-    const kind: MediaKind =
-      source === 'video' ? 'video' : source === 'image' ? 'image' : inferMediaKind(url);
-    addCandidate(candidatesByIdentity, url, kind, source);
+  for (const element of messageViewport.querySelectorAll<
+    HTMLAnchorElement | HTMLImageElement | HTMLVideoElement
+  >('a[href], img, video')) {
+    if (element instanceof HTMLAnchorElement) {
+      collectAnchorCandidate(candidatesByIdentity, element, visibleViewport, windowObject);
+    } else {
+      collectStandaloneMediaCandidate(candidatesByIdentity, element, visibleViewport, windowObject);
+    }
     if (candidatesByIdentity.size >= MAX_CANDIDATES) break;
   }
 
-  if (candidatesByIdentity.size < MAX_CANDIDATES) {
-    for (const element of messageViewport.querySelectorAll<HTMLImageElement | HTMLVideoElement>(
-      'img, video',
-    )) {
-      const containingAnchor = element.closest<HTMLAnchorElement>('a[href]');
-      if (
-        containingAnchor !== null &&
-        normalizeDiscordAttachmentUrl(containingAnchor.href, windowObject.location.href) !== null
-      ) {
-        continue;
-      }
-      if (!isElementVisibleInRect(element, visibleViewport, windowObject)) continue;
-
-      const rawUrl = element.currentSrc || element.src;
-      const url = normalizeDiscordAttachmentUrl(rawUrl, windowObject.location.href);
-      if (url === null) continue;
-
-      const kind: MediaKind = element instanceof HTMLVideoElement ? 'video' : 'image';
-      const source: CandidateSource = element instanceof HTMLVideoElement ? 'video' : 'image';
-      addCandidate(candidatesByIdentity, url, kind, source);
-      if (candidatesByIdentity.size >= MAX_CANDIDATES) break;
-    }
-  }
-
   return [...candidatesByIdentity.values()];
+}
+
+/** Collects one visible attachment anchor at its first DOM position. */
+function collectAnchorCandidate(
+  candidates: Map<string, MediaCandidate>,
+  anchor: HTMLAnchorElement,
+  visibleViewport: RectLike,
+  windowObject: Window,
+): void {
+  const url = normalizeDiscordAttachmentUrl(anchor.href, windowObject.location.href);
+  if (url === null) return;
+
+  const mediaElement = anchor.querySelector('video, img');
+  const visibilityElement = mediaElement ?? anchor;
+  if (!isElementVisibleInRect(visibilityElement, visibleViewport, windowObject)) return;
+
+  const source: CandidateSource =
+    mediaElement?.tagName === 'VIDEO'
+      ? 'video'
+      : mediaElement?.tagName === 'IMG'
+        ? 'image'
+        : 'anchor';
+  const kind: MediaKind =
+    source === 'video' ? 'video' : source === 'image' ? 'image' : inferMediaKind(url);
+  addCandidate(candidates, url, kind, source);
+}
+
+/** Collects media that is not already represented by a valid attachment anchor. */
+function collectStandaloneMediaCandidate(
+  candidates: Map<string, MediaCandidate>,
+  element: HTMLImageElement | HTMLVideoElement,
+  visibleViewport: RectLike,
+  windowObject: Window,
+): void {
+  const containingAnchor = element.closest<HTMLAnchorElement>('a[href]');
+  if (
+    containingAnchor !== null &&
+    normalizeDiscordAttachmentUrl(containingAnchor.href, windowObject.location.href) !== null
+  ) {
+    return;
+  }
+  if (!isElementVisibleInRect(element, visibleViewport, windowObject)) return;
+
+  const rawUrl = element.currentSrc || element.src;
+  const url = normalizeDiscordAttachmentUrl(rawUrl, windowObject.location.href);
+  if (url === null) return;
+
+  const source: CandidateSource = element instanceof HTMLVideoElement ? 'video' : 'image';
+  addCandidate(candidates, url, source, source);
 }
 
 /** Adds a normalized candidate unless its attachment identity already exists. */

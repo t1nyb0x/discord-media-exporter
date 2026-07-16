@@ -236,7 +236,13 @@ Phase 5の`build-media-zip.ts`は入力responseを逐次処理しても、出力
 
 Cache Storageは入力responseと完成ZIPを同時保持してピークdisk usageとI/Oを増やすため使用しません。OPFSもクォータ対象であるため、固定上限撤廃後もwrite failureを必ず処理します。詳細は[Phase 6仕様](large-zip-export.md)と[ADR-0005](adr/0005-stream-large-zip-to-opfs.md)に従います。
 
-候補registryは`Map`の挿入順を取得順として保持します。ZIP開始時はcheckboxの選択順ではなくregistry順で対象を解決し、`001_`から始まる連番をentry名へ付けます。OPFSの`File.type`は空になる場合があるため、完成時に`application/zip`のBlobへ正規化してからBlob URLを作成します。
+extractorはattachment anchorとstandaloneの`img`・`video`を単一のDOM走査で処理し、一回のscanで表示中DOMにある添付の順序を維持します。同一添付をanchorとmedia elementから複数検出した場合は、そのscanのDOM上で最初に現れた位置だけを採用します。
+
+候補registryは`Map`の挿入順を取得順として保持します。個別保存とZIP開始時はcheckboxの選択順ではなくregistry順で対象を解決し、ZIPでは`001_`から始まる連番をentry名へ付けます。OPFSの`File.type`は空になる場合があるため、完成時に`application/zip`のBlobへ正規化してからBlob URLを作成します。
+
+この順序保証はbest-effortです。Discordは画面外のメッセージを仮想化し、同じメッセージ内の添付が別々のscanで初めて可視になる場合があります。既存候補と同時にDOMへ存在しない新しい候補の元位置は安全に復元できないため、scanを跨ぐ順序は候補registryへの発見順とします。順序復元のためのメッセージ単位識別子、本文、投稿時刻、画面外DOM、内部APIは導入しません。
+
+Issue #19で追加する順序精度を高める操作は[ADR-0006](adr/0006-guide-one-scroll-step-per-user-action.md)の一操作一移動境界で行います。ユーザーが任意の開始地点まで「1画面戻る」を繰り返し、popupで収集結果を明示クリアした後、「1画面進む」を一回ずつ実行します。開始地点への自動移動、自動クリア、下端までの自動巡回は行いません。
 
 ## 14. Phase 7: ガイド付き一画面収集
 
