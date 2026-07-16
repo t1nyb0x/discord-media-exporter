@@ -12,6 +12,7 @@ import { intersectRects, isElementVisibleInRect, type RectLike } from './visibil
 
 const MAX_CANDIDATES = 500;
 
+/** Collects allowlisted media that is visible inside the Discord message viewport. */
 export function extractVisibleDiscordMedia(
   documentObject: Document,
   windowObject: Window,
@@ -55,6 +56,7 @@ export function extractVisibleDiscordMedia(
   }
 }
 
+/** Intersects the Discord message viewport with the browser viewport. */
 function createVisibleViewport(messageViewport: Element, windowObject: Window): RectLike | null {
   const browserViewport: RectLike = {
     top: 0,
@@ -67,6 +69,7 @@ function createVisibleViewport(messageViewport: Element, windowObject: Window): 
   return intersectRects(messageViewport.getBoundingClientRect(), browserViewport);
 }
 
+/** Collects and deduplicates visible anchor and standalone media candidates. */
 function collectCandidates(
   messageViewport: Element,
   visibleViewport: RectLike,
@@ -107,10 +110,7 @@ function collectCandidates(
       }
       if (!isElementVisibleInRect(element, visibleViewport, windowObject)) continue;
 
-      const rawUrl =
-        element instanceof HTMLVideoElement
-          ? element.currentSrc || element.src
-          : element.currentSrc || element.src;
+      const rawUrl = element.currentSrc || element.src;
       const url = normalizeDiscordAttachmentUrl(rawUrl, windowObject.location.href);
       if (url === null) continue;
 
@@ -124,6 +124,7 @@ function collectCandidates(
   return [...candidatesByIdentity.values()];
 }
 
+/** Adds a normalized candidate unless its attachment identity already exists. */
 function addCandidate(
   candidates: Map<string, MediaCandidate>,
   url: URL,

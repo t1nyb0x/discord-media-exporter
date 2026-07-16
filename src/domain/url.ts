@@ -7,10 +7,12 @@ const ATTACHMENT_PATH = /^\/attachments\/\d+\/\d+\/[^/]+$/;
 const IMAGE_EXTENSIONS = new Set(['avif', 'bmp', 'gif', 'jpeg', 'jpg', 'png', 'svg', 'webp']);
 const VIDEO_EXTENSIONS = new Set(['avi', 'm4v', 'mkv', 'mov', 'mp4', 'webm']);
 
+/** Reports whether the input identifies a Discord channel page. */
 export function isDiscordChannelUrl(input: string): boolean {
   return discordChannelScope(input) !== null;
 }
 
+/** Returns the stable channel-page scope for a supported Discord URL. */
 export function discordChannelScope(input: string): string | null {
   try {
     const url = new URL(input);
@@ -27,6 +29,7 @@ export function discordChannelScope(input: string): string | null {
   }
 }
 
+/** Resolves and validates a Discord CDN attachment URL against the allowlist. */
 export function normalizeDiscordAttachmentUrl(input: string, baseUrl?: string): URL | null {
   try {
     const url = baseUrl === undefined ? new URL(input) : new URL(input, baseUrl);
@@ -41,10 +44,12 @@ export function normalizeDiscordAttachmentUrl(input: string, baseUrl?: string): 
   }
 }
 
+/** Returns the signature-independent path used to deduplicate an attachment. */
 export function attachmentIdentity(url: URL): string {
   return url.pathname;
 }
 
+/** Infers the media category from an attachment filename extension. */
 export function inferMediaKind(url: URL): MediaKind {
   const filename = url.pathname.split('/').at(-1) ?? '';
   const extension = filename.includes('.') ? (filename.split('.').at(-1) ?? '').toLowerCase() : '';
@@ -54,6 +59,7 @@ export function inferMediaKind(url: URL): MediaKind {
   return 'file';
 }
 
+/** Reports whether an input is a supported Discord CDN attachment URL. */
 export function isAllowedCandidateUrl(input: string): boolean {
   return normalizeDiscordAttachmentUrl(input) !== null;
 }

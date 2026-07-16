@@ -1,5 +1,5 @@
 import { browser } from 'wxt/browser';
-import type { ZipEntryCandidate } from '../../src/domain/zip-export';
+import type { ZipEntryCandidate, ZipExportErrorCode } from '../../src/domain/zip-export';
 import {
   buildMediaZip,
   ZipBuildError,
@@ -50,6 +50,7 @@ browser.runtime.onMessage.addListener(async (message, sender): Promise<unknown> 
   }
 });
 
+/** Builds one ZIP job, publishes its artifact, and cleans up failures. */
 async function createZip(job: ActiveJob, entries: ZipEntryCandidate[]): Promise<void> {
   let currentFilename: string | undefined;
   let sink: TemporaryZipArchiveSink | undefined;
@@ -83,14 +84,7 @@ async function createZip(job: ActiveJob, entries: ZipEntryCandidate[]): Promise<
       await sink.abort().catch(() => undefined);
     }
     const cancelled = job.controller.signal.aborted;
-    const code =
-      error instanceof ZipBuildError
-        ? error.code
-        : error instanceof DOMException && error.name === 'QuotaExceededError'
-          ? 'STORAGE_QUOTA_EXCEEDED'
-          : sink === undefined
-            ? 'TEMP_WRITE_FAILED'
-            : 'ZIP_FAILED';
+    const code = zipFailureCode(error, sink !== undefined);
     const failedEvent: ZipBackgroundEvent = {
       target: 'background',
       type: 'ZIP_FAILED',
@@ -106,6 +100,7 @@ async function createZip(job: ActiveJob, entries: ZipEntryCandidate[]): Promise<
   }
 }
 
+/** Creates a throttled, ordered progress sender for one ZIP job. */
 function createProgressReporter(jobId: string): {
   report(progress: ZipBuildProgress): void;
   flush(): Promise<void>;
@@ -138,6 +133,7 @@ function createProgressReporter(jobId: string): {
     },
   };
 
+  /** Sends the latest pending progress after earlier sends settle. */
   function sendLatest(): Promise<void> {
     const progress = latest;
     latest = undefined;
@@ -147,6 +143,7 @@ function createProgressReporter(jobId: string): {
   }
 }
 
+/** Converts ZIP build progress into a background event. */
 async function postProgress(jobId: string, progress: ZipBuildProgress): Promise<void> {
   const event: ZipBackgroundEvent = {
     target: 'background',
@@ -161,6 +158,16 @@ async function postProgress(jobId: string, progress: ZipBuildProgress): Promise<
   await postBackgroundEvent(event);
 }
 
+/** Sends one typed ZIP event to the background service worker. */
 async function postBackgroundEvent(event: ZipBackgroundEvent): Promise<void> {
   await browser.runtime.sendMessage(event);
+}
+
+/** Maps an offscreen failure to the narrow ZIP error taxonomy. */
+function zipFailureCode(error: unknown, sinkCreated: boolean): ZipExportErrorCode {
+  if (error instanceof ZipBuildError) return error.code;
+  if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+    return 'STORAGE_QUOTA_EXCEEDED';
+  }
+  return sinkCreated ? 'ZIP_FAILED' : 'TEMP_WRITE_FAILED';
 }

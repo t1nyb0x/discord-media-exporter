@@ -17,6 +17,7 @@ export type ZipExportErrorCode =
   | 'DOWNLOAD_NO_SPACE'
   | 'CONTEXT_LOST';
 
+/** Converts selected candidates into ordered, uniquely named ZIP entries. */
 export function prepareZipEntries(candidates: MediaCandidate[]): ZipEntryCandidate[] {
   if (candidates.length === 0) throw new Error('ZIPに保存するメディアを選択してください。');
 
@@ -32,6 +33,7 @@ export function prepareZipEntries(candidates: MediaCandidate[]): ZipEntryCandida
   }));
 }
 
+/** Creates the initial persisted ZIP export state. */
 export function createIdleZipState(): ZipExportState {
   return {
     status: 'idle',
@@ -42,10 +44,12 @@ export function createIdleZipState(): ZipExportState {
   };
 }
 
+/** Reports whether a ZIP export status represents unfinished work. */
 export function isActiveZipStatus(status: ZipExportStatus): boolean {
   return status === 'fetching' || status === 'packing' || status === 'saving';
 }
 
+/** Creates a timestamped archive filename using the local clock. */
 export function createZipArchiveFilename(date = new Date()): string {
   const parts = [
     date.getFullYear(),
@@ -59,6 +63,7 @@ export function createZipArchiveFilename(date = new Date()): string {
   return `discord-media-${parts.join('')}.zip`;
 }
 
+/** Maps an internal ZIP failure code to a safe user-facing message. */
 export function zipExportErrorMessage(code: ZipExportErrorCode, filename?: string): string {
   const target = filename === undefined ? '' : `「${sanitizeFilename(filename)}」を`;
   switch (code) {
@@ -81,6 +86,7 @@ export function zipExportErrorMessage(code: ZipExportErrorCode, filename?: strin
   }
 }
 
+/** Reserves a case-insensitively unique, sanitized ZIP entry filename. */
 function uniqueFilename(input: string, usedNames: Set<string>): string {
   const safeName = sanitizeFilename(input);
   if (!usedNames.has(safeName.toLocaleLowerCase())) {
@@ -103,6 +109,7 @@ function uniqueFilename(input: string, usedNames: Set<string>): string {
   throw new Error('ZIP内のファイル名を一意にできませんでした。');
 }
 
+/** Separates a short filename extension from its basename. */
 function splitExtension(filename: string): { basename: string; extension: string } {
   const dotIndex = filename.lastIndexOf('.');
   if (dotIndex <= 0 || filename.length - dotIndex > 16) {
@@ -111,6 +118,7 @@ function splitExtension(filename: string): { basename: string; extension: string
   return { basename: filename.slice(0, dotIndex), extension: filename.slice(dotIndex) };
 }
 
+/** Formats a date component as two decimal digits. */
 function pad(value: number): string {
   return String(value).padStart(2, '0');
 }

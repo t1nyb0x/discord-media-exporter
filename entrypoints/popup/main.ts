@@ -78,12 +78,14 @@ const statusTimer = window.setInterval(() => {
 }, 1_000);
 window.addEventListener('unload', () => window.clearInterval(statusTimer));
 
+/** Starts or stops collection based on the restored collector state. */
 async function toggleMediaCollector(): Promise<void> {
   await collectorStatusRestoration;
   if (state.collectorActive) await stopMediaCollector();
   else await startMediaCollector();
 }
 
+/** Injects the collector, registers its first result, and updates popup state. */
 async function startMediaCollector(): Promise<void> {
   setBusy(scanButton, true, '開始中…');
   setNotice('');
@@ -148,6 +150,7 @@ async function startMediaCollector(): Promise<void> {
   }
 }
 
+/** Stops collection in the active tab while preserving collected candidates. */
 async function stopMediaCollector(): Promise<void> {
   setBusy(scanButton, true, '停止中…');
   try {
@@ -162,6 +165,7 @@ async function stopMediaCollector(): Promise<void> {
   }
 }
 
+/** Restores whether the active Discord tab still has a running collector. */
 async function restoreCollectorStatus(): Promise<void> {
   try {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
@@ -178,10 +182,12 @@ async function restoreCollectorStatus(): Promise<void> {
   }
 }
 
+/** Returns the scan button label for the current collector state. */
 function collectorButtonLabel(): string {
   return state.collectorActive ? '自動収集を停止' : '自動収集を開始';
 }
 
+/** Restores the candidate collection for the active Discord channel. */
 async function restoreScanCollection(): Promise<void> {
   try {
     const scope = await getActiveChannelScope();
@@ -198,6 +204,7 @@ async function restoreScanCollection(): Promise<void> {
   }
 }
 
+/** Clears the active channel collection and synchronizes the page controls. */
 async function clearScanCollection(): Promise<void> {
   setBusy(clearCollectionButton, true, 'クリア中…');
   try {
@@ -223,11 +230,13 @@ async function clearScanCollection(): Promise<void> {
   }
 }
 
+/** Returns the validated Discord channel scope of the active tab. */
 async function getActiveChannelScope(): Promise<string | null> {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
   return typeof tab?.url === 'string' ? discordChannelScope(tab.url) : null;
 }
 
+/** Replaces popup candidates while retaining only still-valid selections. */
 function applyCollection(collection: CandidateCollection): void {
   state.candidates = collection.candidates;
   const candidateIds = new Set(collection.candidates.map((candidate) => candidate.id));
@@ -235,6 +244,7 @@ function applyCollection(collection: CandidateCollection): void {
   renderCandidates();
 }
 
+/** Starts individual browser downloads for the selected candidates. */
 async function startSelectedDownloads(): Promise<void> {
   if (state.selectedIds.size === 0) return;
   setBusy(downloadButton, true, '開始中…');
@@ -260,6 +270,7 @@ async function startSelectedDownloads(): Promise<void> {
   }
 }
 
+/** Requests optional CDN access and starts a ZIP export for the selection. */
 async function startSelectedZipExport(): Promise<void> {
   if (state.selectedIds.size === 0) return;
   setBusy(zipButton, true, '容量を確認中…');
@@ -294,6 +305,7 @@ async function startSelectedZipExport(): Promise<void> {
   }
 }
 
+/** Describes estimated temporary storage availability without exposing paths. */
 async function storageAvailabilityNotice(): Promise<string> {
   try {
     const estimate = await navigator.storage.estimate();
@@ -305,6 +317,7 @@ async function storageAvailabilityNotice(): Promise<string> {
   }
 }
 
+/** Cancels the active ZIP export and renders its resulting state. */
 async function cancelZipExport(): Promise<void> {
   setBusy(zipCancelButton, true, 'キャンセル中…');
   try {
@@ -322,6 +335,7 @@ async function cancelZipExport(): Promise<void> {
   }
 }
 
+/** Polls and renders individual download progress when available. */
 async function refreshDownloadStatus(): Promise<void> {
   try {
     const response = await sendRequest({ type: 'GET_DOWNLOAD_STATUS' });
@@ -334,6 +348,7 @@ async function refreshDownloadStatus(): Promise<void> {
   }
 }
 
+/** Polls and renders ZIP export progress. */
 async function refreshZipExportStatus(): Promise<void> {
   try {
     const response = await sendRequest({ type: 'GET_EXPORT_STATUS' });
@@ -344,50 +359,57 @@ async function refreshZipExportStatus(): Promise<void> {
   }
 }
 
+/** Renders the current filtered candidate collection. */
 function renderCandidates(): void {
   candidateList.replaceChildren();
   const candidates = filteredCandidates();
 
   for (const candidate of candidates) {
-    const item = document.createElement('li');
-    item.className = 'candidate';
-
-    const label = document.createElement('label');
-    label.className = 'candidate-label';
-
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.checked = state.selectedIds.has(candidate.id);
-    checkbox.addEventListener('change', () => {
-      if (checkbox.checked) state.selectedIds.add(candidate.id);
-      else state.selectedIds.delete(candidate.id);
-      updateSelectionSummary();
-    });
-
-    const icon = document.createElement('span');
-    icon.className = `media-icon media-icon-${candidate.kind}`;
-    icon.textContent = mediaKindLabel(candidate.kind).slice(0, 1);
-    icon.setAttribute('aria-hidden', 'true');
-
-    const text = document.createElement('span');
-    text.className = 'candidate-text';
-    const name = document.createElement('span');
-    name.className = 'candidate-name';
-    name.textContent = candidate.displayName;
-    const kind = document.createElement('span');
-    kind.className = 'candidate-kind';
-    kind.textContent = mediaKindLabel(candidate.kind);
-    text.append(name, kind);
-
-    label.append(checkbox, icon, text);
-    item.append(label);
-    candidateList.append(item);
+    candidateList.append(createCandidateListItem(candidate));
   }
 
   candidateCount.textContent = `${state.candidates.length}件`;
   updateSelectionSummary();
 }
 
+/** Creates one safely populated candidate selection row. */
+function createCandidateListItem(candidate: MediaCandidate): HTMLLIElement {
+  const item = document.createElement('li');
+  item.className = 'candidate';
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.checked = state.selectedIds.has(candidate.id);
+  checkbox.addEventListener('change', () => {
+    if (checkbox.checked) state.selectedIds.add(candidate.id);
+    else state.selectedIds.delete(candidate.id);
+    updateSelectionSummary();
+  });
+
+  const icon = document.createElement('span');
+  icon.className = `media-icon media-icon-${candidate.kind}`;
+  icon.textContent = mediaKindLabel(candidate.kind).slice(0, 1);
+  icon.setAttribute('aria-hidden', 'true');
+
+  const name = document.createElement('span');
+  name.className = 'candidate-name';
+  name.textContent = candidate.displayName;
+  const kind = document.createElement('span');
+  kind.className = 'candidate-kind';
+  kind.textContent = mediaKindLabel(candidate.kind);
+
+  const text = document.createElement('span');
+  text.className = 'candidate-text';
+  text.append(name, kind);
+
+  const label = document.createElement('label');
+  label.className = 'candidate-label';
+  label.append(checkbox, icon, text);
+  item.append(label);
+  return item;
+}
+
+/** Updates selection counts and action availability. */
 function updateSelectionSummary(): void {
   const count = state.selectedIds.size;
   selectionSummary.textContent = `${count}件を選択中`;
@@ -395,6 +417,7 @@ function updateSelectionSummary(): void {
   zipButton.disabled = count === 0 || state.zipActive;
 }
 
+/** Renders a complete individual-download batch snapshot. */
 function renderProgress(downloadState: DownloadBatchState): void {
   const counts = { queued: 0, in_progress: 0, complete: 0, failed: 0 };
   for (const item of downloadState.items) counts[item.status] += 1;
@@ -407,32 +430,39 @@ function renderProgress(downloadState: DownloadBatchState): void {
 
   progressList.replaceChildren();
   for (const downloadItem of downloadState.items) {
-    const item = document.createElement('li');
-    item.className = `progress-item progress-item-${downloadItem.status}`;
-
-    const status = document.createElement('span');
-    status.className = 'progress-status';
-    status.textContent = downloadStatusLabel(downloadItem.status);
-
-    const details = document.createElement('span');
-    details.className = 'progress-details';
-    const filename = document.createElement('span');
-    filename.className = 'progress-filename';
-    filename.textContent = downloadItem.filename;
-    details.append(filename);
-
-    if (downloadItem.error !== undefined) {
-      const error = document.createElement('span');
-      error.className = 'progress-error';
-      error.textContent = downloadItem.error;
-      details.append(error);
-    }
-
-    item.append(status, details);
-    progressList.append(item);
+    progressList.append(createProgressListItem(downloadItem));
   }
 }
 
+/** Creates one safely populated individual-download progress row. */
+function createProgressListItem(downloadItem: DownloadBatchState['items'][number]): HTMLLIElement {
+  const item = document.createElement('li');
+  item.className = `progress-item progress-item-${downloadItem.status}`;
+
+  const status = document.createElement('span');
+  status.className = 'progress-status';
+  status.textContent = downloadStatusLabel(downloadItem.status);
+
+  const filename = document.createElement('span');
+  filename.className = 'progress-filename';
+  filename.textContent = downloadItem.filename;
+
+  const details = document.createElement('span');
+  details.className = 'progress-details';
+  details.append(filename);
+
+  if (downloadItem.error !== undefined) {
+    const error = document.createElement('span');
+    error.className = 'progress-error';
+    error.textContent = downloadItem.error;
+    details.append(error);
+  }
+
+  item.append(status, details);
+  return item;
+}
+
+/** Renders ZIP progress and synchronizes action availability. */
 function renderZipProgress(zipState: ZipExportState): void {
   if (zipState.status === 'idle') {
     zipProgress.hidden = true;
@@ -456,18 +486,21 @@ function renderZipProgress(zipState: ZipExportState): void {
   updateSelectionSummary();
 }
 
+/** Returns candidates matching the current media-kind filter. */
 function filteredCandidates(): MediaCandidate[] {
   return state.filter === 'all'
     ? state.candidates
     : state.candidates.filter((candidate) => candidate.kind === state.filter);
 }
 
+/** Sends a typed request and validates the extension response envelope. */
 async function sendRequest(request: ExtensionRequest): Promise<ExtensionResponse> {
   const response: unknown = await browser.runtime.sendMessage(request);
   if (!isExtensionResponse(response)) throw new Error('拡張機能からの応答を検証できませんでした。');
   return response;
 }
 
+/** Validates an injected page scan result. */
 function isScanResult(value: unknown): value is ScanResult {
   if (!isRecord(value) || typeof value.ok !== 'boolean') return false;
   if (value.ok) {
@@ -481,6 +514,7 @@ function isScanResult(value: unknown): value is ScanResult {
   return typeof value.code === 'string' && typeof value.message === 'string';
 }
 
+/** Validates the shared extension response envelope used by the popup. */
 function isExtensionResponse(value: unknown): value is ExtensionResponse {
   if (!isRecord(value) || typeof value.ok !== 'boolean') return false;
   if (!value.ok) return typeof value.error === 'string';
@@ -491,6 +525,7 @@ function isExtensionResponse(value: unknown): value is ExtensionResponse {
   return true;
 }
 
+/** Validates a candidate collection returned across an extension boundary. */
 function isCandidateCollection(value: unknown): value is CandidateCollection {
   return (
     isRecord(value) &&
@@ -500,10 +535,12 @@ function isCandidateCollection(value: unknown): value is CandidateCollection {
   );
 }
 
+/** Validates a media-kind filter value from the popup select element. */
 function isMediaFilter(value: string): value is MediaKind | 'all' {
   return ['all', 'image', 'video', 'file'].includes(value);
 }
 
+/** Returns the localized display label for a media kind. */
 function mediaKindLabel(kind: MediaKind): string {
   switch (kind) {
     case 'image':
@@ -515,6 +552,7 @@ function mediaKindLabel(kind: MediaKind): string {
   }
 }
 
+/** Returns the localized display label for an individual download status. */
 function downloadStatusLabel(status: DownloadBatchState['items'][number]['status']): string {
   switch (status) {
     case 'queued':
@@ -528,6 +566,7 @@ function downloadStatusLabel(status: DownloadBatchState['items'][number]['status
   }
 }
 
+/** Returns the localized display label for a ZIP export status. */
 function zipStatusLabel(status: ZipExportState['status']): string {
   switch (status) {
     case 'idle':
@@ -547,23 +586,27 @@ function zipStatusLabel(status: ZipExportState['status']): string {
   }
 }
 
+/** Formats a byte count using compact binary units. */
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
 }
 
+/** Updates the popup notice using text-only DOM APIs. */
 function setNotice(message: string, isError = false): void {
   notice.textContent = message;
   notice.classList.toggle('notice-error', isError);
 }
 
+/** Updates a button's busy state and accessible label. */
 function setBusy(button: HTMLButtonElement, busy: boolean, label: string): void {
   button.disabled = busy;
   button.textContent = label;
   button.setAttribute('aria-busy', String(busy));
 }
 
+/** Returns a required popup element or fails during initialization. */
 function requireElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
   if (element === null) throw new Error(`Required element not found: ${id}`);

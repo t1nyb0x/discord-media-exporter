@@ -5,6 +5,7 @@ const DEFAULT_DEBOUNCE_MS = 250;
 
 type SuccessfulScanResult = Extract<ScanResult, { ok: true }>;
 
+/** Observes user-visible DOM changes and publishes changed scan results. */
 export class VisibleMediaCollector {
   private observer: MutationObserver | null = null;
   private timer: number | undefined;
@@ -20,6 +21,7 @@ export class VisibleMediaCollector {
     private readonly onStopped?: () => void,
   ) {}
 
+  /** Performs the initial scan and starts observation when scanning is supported. */
   start(): ScanResult {
     const result = this.scanCurrent();
     if (!result.ok || this.active) return result;
@@ -41,6 +43,7 @@ export class VisibleMediaCollector {
     return result;
   }
 
+  /** Stops observation, clears pending work, and notifies the owner once. */
   stop(): void {
     const wasActive = this.active;
     this.active = false;
@@ -55,18 +58,22 @@ export class VisibleMediaCollector {
     if (wasActive) this.onStopped?.();
   }
 
+  /** Reports whether this collector is currently observing the page. */
   isActive(): boolean {
     return this.active;
   }
 
+  /** Returns the Discord channel scope captured when collection started. */
   getScope(): string | null {
     return this.scope;
   }
 
+  /** Scans the current visible Discord message viewport. */
   scanCurrent(): ScanResult {
     return extractVisibleDiscordMedia(this.documentObject, this.windowObject);
   }
 
+  /** Debounces scan work triggered by DOM, scroll, resize, or history changes. */
   private readonly scheduleScan = (): void => {
     if (!this.active) return;
     if (this.timer !== undefined) this.windowObject.clearTimeout(this.timer);
@@ -76,6 +83,7 @@ export class VisibleMediaCollector {
     }, this.debounceMs);
   };
 
+  /** Publishes a changed result or stops when the channel scope changes. */
   private async scanAndPublish(): Promise<void> {
     if (!this.active) return;
     const result = this.scanCurrent();
@@ -92,6 +100,7 @@ export class VisibleMediaCollector {
   }
 }
 
+/** Creates an order-independent fingerprint of a successful scan result. */
 function fingerprint(result: SuccessfulScanResult): string {
   return result.candidates
     .map((candidate) => `${candidate.id}:${candidate.sourceUrl}`)

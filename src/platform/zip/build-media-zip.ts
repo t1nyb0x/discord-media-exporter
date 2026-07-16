@@ -27,6 +27,7 @@ export interface BuiltMediaZip {
   outputBytes: number;
 }
 
+/** Fetches allowlisted media with bounded concurrency and streams it into a ZIP sink. */
 export async function buildMediaZip(
   entries: ZipEntryCandidate[],
   options: BuildMediaZipOptions,
@@ -134,11 +135,13 @@ export async function buildMediaZip(
     options.signal.removeEventListener('abort', abortFetches);
   }
 
+  /** Schedules one response fetch without consuming its response body. */
   function schedulePrefetch(index: number): void {
     pendingResponses.set(index, prefetchResponse(entries[index]!, fetcher, fetchController.signal));
   }
 }
 
+/** Identifies a safe, user-presentable ZIP build failure category. */
 export class ZipBuildError extends Error {
   constructor(
     readonly code: ZipExportErrorCode,
@@ -148,18 +151,22 @@ export class ZipBuildError extends Error {
   }
 }
 
+/** Throws an AbortError when the caller has cancelled ZIP creation. */
 function assertNotCancelled(signal: AbortSignal): void {
   if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
 }
 
+/** Reports whether an unknown failure is a DOM AbortError. */
 function isAbortError(error: unknown): error is DOMException {
   return error instanceof DOMException && error.name === 'AbortError';
 }
 
+/** Reports whether an unknown failure indicates exhausted browser storage quota. */
 function isQuotaExceededError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'QuotaExceededError';
 }
 
+/** Converts a bigint byte count to a safely representable progress number. */
 function toSafeNumber(value: bigint): number {
   return value > BigInt(Number.MAX_SAFE_INTEGER) ? Number.MAX_SAFE_INTEGER : Number(value);
 }
@@ -167,6 +174,7 @@ function toSafeNumber(value: bigint): number {
 type PrefetchedResponse =
   { ok: true; response: Response } | { ok: false; error: ZipBuildError | DOMException };
 
+/** Fetches and validates one response without buffering its body. */
 async function prefetchResponse(
   entry: ZipEntryCandidate,
   fetcher: typeof fetch,
@@ -200,6 +208,7 @@ async function prefetchResponse(
   return { ok: true, response };
 }
 
+/** Cancels response bodies that were prefetched but never consumed. */
 async function cancelPendingResponses(
   pendingResponses: Map<number, Promise<PrefetchedResponse>>,
 ): Promise<void> {
@@ -212,6 +221,7 @@ async function cancelPendingResponses(
   );
 }
 
+/** Normalizes requested fetch concurrency to the supported bounded range. */
 function clampConcurrency(value: number): number {
   if (!Number.isFinite(value)) return DEFAULT_FETCH_CONCURRENCY;
   return Math.min(DEFAULT_FETCH_CONCURRENCY, Math.max(1, Math.floor(value)));

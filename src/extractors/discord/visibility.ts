@@ -7,6 +7,7 @@ export interface RectLike {
   height: number;
 }
 
+/** Returns the positive-area intersection of two rectangles. */
 export function intersectRects(first: RectLike, second: RectLike): RectLike | null {
   const top = Math.max(first.top, second.top);
   const right = Math.min(first.right, second.right);
@@ -19,6 +20,7 @@ export function intersectRects(first: RectLike, second: RectLike): RectLike | nu
   return { top, right, bottom, left, width, height };
 }
 
+/** Reports whether an element is rendered and intersects the supplied viewport. */
 export function isElementVisibleInRect(
   element: Element,
   viewport: RectLike,

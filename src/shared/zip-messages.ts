@@ -50,6 +50,7 @@ export type ZipBackgroundEvent =
       cancelled?: boolean;
     };
 
+/** Validates a background-to-offscreen ZIP request. */
 export function isOffscreenZipRequest(value: unknown): value is OffscreenZipRequest {
   if (!isRecord(value) || value.target !== 'offscreen' || typeof value.type !== 'string') {
     return false;
@@ -60,6 +61,7 @@ export function isOffscreenZipRequest(value: unknown): value is OffscreenZipRequ
   return value.entries.every(isZipEntryCandidate);
 }
 
+/** Validates an offscreen-to-background ZIP event. */
 export function isZipBackgroundEvent(value: unknown): value is ZipBackgroundEvent {
   if (!isRecord(value) || value.target !== 'background' || typeof value.type !== 'string') {
     return false;
@@ -92,6 +94,7 @@ export function isZipBackgroundEvent(value: unknown): value is ZipBackgroundEven
   return false;
 }
 
+/** Validates one serialized ZIP entry candidate. */
 function isZipEntryCandidate(value: unknown): value is ZipEntryCandidate {
   return (
     isRecord(value) &&
