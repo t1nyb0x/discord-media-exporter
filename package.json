@@ -2,6 +2,7 @@
   "name": "discord-media-exporter",
   "version": "0.9.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "User-initiated helper for downloading visible Discord media.",
   "packageManager": "pnpm@9.7.0",
