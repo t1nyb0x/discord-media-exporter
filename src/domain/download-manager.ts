@@ -102,20 +102,12 @@ export class DownloadManager {
     await this.ensureInitialized();
     if (this.hasActiveBatch()) throw new Error('ダウンロードは既に進行中です。');
 
-    const uniqueIds = [...new Set(candidateIds)];
-    if (uniqueIds.length === 0) throw new Error('保存するメディアを選択してください。');
-
-    const items: DownloadItemState[] = uniqueIds.map((candidateId) => {
-      const candidate = this.candidateRegistry.get(candidateId);
-      if (candidate === undefined) {
-        throw new Error('メディア候補の有効期限が切れました。再スキャンしてください。');
-      }
-      return {
-        candidateId,
-        filename: candidate.suggestedFilename,
-        status: 'queued',
-      };
-    });
+    const candidates = this.resolveRegisteredCandidates(candidateIds);
+    const items: DownloadItemState[] = candidates.map((candidate) => ({
+      candidateId: candidate.id,
+      filename: candidate.suggestedFilename,
+      status: 'queued',
+    }));
 
     this.batchState = { items };
     this.activeDownloadIds.clear();
@@ -127,6 +119,11 @@ export class DownloadManager {
   /** Resolves selected identifiers to validated candidates in collection order. */
   async getRegisteredCandidates(candidateIds: string[]): Promise<MediaCandidate[]> {
     await this.ensureInitialized();
+    return this.resolveRegisteredCandidates(candidateIds).map((candidate) => ({ ...candidate }));
+  }
+
+  /** Resolves a selection against the registry without using checkbox selection order. */
+  private resolveRegisteredCandidates(candidateIds: string[]): MediaCandidate[] {
     const requestedIds = new Set(candidateIds);
     if (requestedIds.size === 0) throw new Error('保存するメディアを選択してください。');
 
@@ -136,7 +133,7 @@ export class DownloadManager {
       if (!isValidMediaCandidate(candidate)) {
         throw new Error('メディア候補の有効期限が切れました。再スキャンしてください。');
       }
-      candidates.push({ ...candidate });
+      candidates.push(candidate);
       requestedIds.delete(candidate.id);
     }
     if (requestedIds.size > 0) {

@@ -6,6 +6,7 @@ import {
 } from '../../src/domain/download-manager';
 import { stableCandidateId } from '../../src/domain/id';
 import type { DownloadBatchState, MediaCandidate } from '../../src/domain/media';
+import { prepareZipEntries } from '../../src/domain/zip-export';
 
 describe('DownloadManager', () => {
   const scope = 'https://discord.com/channels/100/200';
@@ -167,17 +168,31 @@ describe('DownloadManager', () => {
     expect(collection.candidates.at(-1)?.suggestedFilename).toBe('file-499.png');
   });
 
-  it('resolves selected ZIP candidates in their original collection order', async () => {
+  it('starts selected individual downloads in their original collection order', async () => {
+    const platform = new FakeDownloadPlatform();
+    const manager = new DownloadManager(platform);
+    const candidates = [1, 2, 3].map(createCandidate);
+    await manager.registerCandidates(candidates, scope);
+
+    const state = await manager.startDownloads([candidates[2]!.id, candidates[0]!.id]);
+
+    expect(state.items.map((item) => item.filename)).toEqual(['file-1.png', 'file-3.png']);
+    expect(platform.startedFilenames).toEqual(['file-1.png', 'file-3.png']);
+  });
+
+  it('resolves selected ZIP entries in their original collection order', async () => {
     const manager = new DownloadManager(new FakeDownloadPlatform());
     const candidates = [1, 2, 3].map(createCandidate);
     await manager.registerCandidates(candidates, scope);
 
     const selected = await manager.getRegisteredCandidates([candidates[2]!.id, candidates[0]!.id]);
+    const entries = prepareZipEntries(selected);
 
     expect(selected.map((candidate) => candidate.suggestedFilename)).toEqual([
       'file-1.png',
       'file-3.png',
     ]);
+    expect(entries.map((entry) => entry.filename)).toEqual(['001_file-1.png', '002_file-3.png']);
   });
 });
 

@@ -4,6 +4,7 @@ import {
   GuidedCollectionControls,
   revealVisibleSpoilers,
   scrollOnePageBackward,
+  scrollOnePageForward,
 } from '../src/extractors/discord/guided-scroll';
 import { VisibleMediaCollector } from '../src/extractors/discord/visible-media-collector';
 import { isCollectorRequest, type CollectorResponse } from '../src/shared/collector-messages';
@@ -109,7 +110,8 @@ function createControls(
   collector: VisibleMediaCollector,
 ): GuidedCollectionControls {
   const controls = new GuidedCollectionControls(document, {
-    onStep: () => scrollOnePageBackward(document, window),
+    onStepBackward: () => scrollOnePageBackward(document, window),
+    onStepForward: () => scrollOnePageForward(document, window),
     onRevealSpoilers: () => revealVisibleSpoilers(document, window),
     onStop: () => {
       collector.stop();

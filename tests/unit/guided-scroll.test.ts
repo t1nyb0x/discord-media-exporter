@@ -3,6 +3,7 @@ import {
   GuidedCollectionControls,
   revealVisibleSpoilers,
   scrollOnePageBackward,
+  scrollOnePageForward,
 } from '../../src/extractors/discord/guided-scroll';
 import { findMessageScrollContainer } from '../../src/extractors/discord/message-viewport';
 
@@ -35,12 +36,38 @@ describe('guided scroll collection', () => {
     expect(onScroll).not.toHaveBeenCalled();
   });
 
-  it('runs one step per explicit button click and stops from the page control', () => {
-    const onStep = vi.fn(() => ({ status: 'moved' as const, reachedStart: false }));
+  it('moves exactly one user-requested page forward and stops at the end', () => {
+    const container = prepareScrollableMessages(1_600);
+    const onScroll = vi.fn();
+    container.addEventListener('scroll', onScroll);
+
+    expect(scrollOnePageForward(document, window)).toEqual({
+      status: 'moved',
+      reachedEnd: false,
+    });
+    expect(container.scrollTop).toBe(2_160);
+    expect(onScroll).toHaveBeenCalledOnce();
+
+    container.scrollTop = 3_200;
+    expect(scrollOnePageForward(document, window)).toEqual({
+      status: 'moved',
+      reachedEnd: true,
+    });
+    expect(container.scrollTop).toBe(3_300);
+    expect(onScroll).toHaveBeenCalledTimes(2);
+
+    expect(scrollOnePageForward(document, window)).toEqual({ status: 'at_end' });
+    expect(onScroll).toHaveBeenCalledTimes(2);
+  });
+
+  it('runs one step per explicit direction button click and stops from the page control', () => {
+    const onStepBackward = vi.fn(() => ({ status: 'moved' as const, reachedStart: false }));
+    const onStepForward = vi.fn(() => ({ status: 'moved' as const, reachedEnd: false }));
     const onRevealSpoilers = vi.fn(() => ({ revealed: 2, failed: 0 }));
     const onStop = vi.fn();
     const controls = new GuidedCollectionControls(document, {
-      onStep,
+      onStepBackward,
+      onStepForward,
       onRevealSpoilers,
       onStop,
     });
@@ -48,28 +75,54 @@ describe('guided scroll collection', () => {
     const buttons = host.shadowRoot!.querySelectorAll<HTMLButtonElement>('button');
 
     buttons[0]!.click();
-    expect(onStep).toHaveBeenCalledOnce();
+    expect(onStepBackward).toHaveBeenCalledOnce();
     expect(host.shadowRoot!.textContent).toContain('1画面戻りました');
 
     buttons[1]!.click();
+    expect(onStepForward).toHaveBeenCalledOnce();
+    expect(host.shadowRoot!.textContent).toContain('1画面進みました');
+
+    buttons[2]!.click();
     expect(onRevealSpoilers).toHaveBeenCalledOnce();
     expect(host.shadowRoot!.textContent).toContain('2件のスポイラー');
 
-    buttons[2]!.click();
+    buttons[3]!.click();
     expect(onStop).toHaveBeenCalledOnce();
 
     controls.setCollectedCount(500);
     expect(buttons[0]!.disabled).toBe(true);
+    expect(buttons[1]!.disabled).toBe(true);
     expect(host.shadowRoot!.textContent).toContain('500件');
     controls.setCollectedCount(10);
     expect(buttons[0]!.disabled).toBe(false);
+    expect(buttons[1]!.disabled).toBe(false);
     controls.remove();
     expect(document.getElementById('discord-media-exporter-guided-controls')).toBeNull();
+  });
+
+  it('reports upper and lower boundaries without starting another scroll', () => {
+    const controls = new GuidedCollectionControls(document, {
+      onStepBackward: () => ({ status: 'at_start' }),
+      onStepForward: () => ({ status: 'at_end' }),
+      onRevealSpoilers: () => ({ revealed: 0, failed: 0 }),
+      onStop: vi.fn(),
+    });
+    const host = document.getElementById('discord-media-exporter-guided-controls')!;
+    const buttons = host.shadowRoot!.querySelectorAll<HTMLButtonElement>('button');
+
+    buttons[0]!.click();
+    expect(host.shadowRoot!.textContent).toContain('現在は上端');
+
+    buttons[1]!.click();
+    expect(host.shadowRoot!.textContent).toContain('現在は下端');
+
+    controls.remove();
   });
 
   it('fails safely when the message scroll container is unavailable', () => {
     document.body.replaceChildren(document.createElement('main'));
     expect(scrollOnePageBackward(document, window)).toEqual({ status: 'unavailable' });
+    expect(scrollOnePageForward(document, window)).toEqual({ status: 'unavailable' });
   });
 
   it('reveals only visible labelled spoiler controls and caps one action at 50', () => {

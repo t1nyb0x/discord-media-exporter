@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { extractVisibleDiscordMedia } from '../../src/extractors/discord/extract-visible-media';
+import attachmentOrderFixture from '../fixtures/discord-attachment-order.html?raw';
 import fixture from '../fixtures/discord-channel.html?raw';
 
 describe('extractVisibleDiscordMedia', () => {
@@ -74,6 +75,37 @@ describe('extractVisibleDiscordMedia', () => {
       ok: true,
       candidates: [{ suggestedFilename: 'fallback.pdf', kind: 'file' }],
     });
+  });
+
+  it('preserves mixed attachment order across messages and keeps the first duplicate position', () => {
+    document.open();
+    document.write(attachmentOrderFixture);
+    document.close();
+    window.location.href = 'https://discord.com/channels/100/200';
+    setWindowSize(1024, 768);
+    setRect(requireElement('message-viewport'), rect(0, 0, 900, 700));
+    setRect(requireElement('first-standalone-image'), rect(20, 20, 200, 160));
+    setRect(requireElement('second-video').querySelector('video')!, rect(20, 200, 240, 180));
+    setRect(requireElement('third-file'), rect(20, 400, 300, 40));
+    setRect(requireElement('duplicate-first-image'), rect(20, 460, 300, 40));
+    setRect(requireElement('fourth-image').querySelector('img')!, rect(20, 520, 200, 160));
+
+    const result = extractVisibleDiscordMedia(document, window);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.candidates.map((candidate) => candidate.suggestedFilename)).toEqual([
+      'first.png',
+      'second.mp4',
+      'third.pdf',
+      'fourth.webp',
+    ]);
+    expect(result.candidates.map((candidate) => candidate.source)).toEqual([
+      'image',
+      'video',
+      'anchor',
+      'image',
+    ]);
   });
 
   it('normalizes up to 500 visible candidates within the performance budget', () => {
