@@ -22,7 +22,6 @@ export function extractVisibleDiscordMedia(
     return {
       ok: false,
       code: 'NOT_DISCORD_CHANNEL',
-      message: 'Discord のチャンネル画面を開いてください。',
     };
   }
 
@@ -31,7 +30,6 @@ export function extractVisibleDiscordMedia(
     return {
       ok: false,
       code: 'MESSAGE_VIEWPORT_NOT_FOUND',
-      message: 'メッセージ表示領域を確認できませんでした。',
     };
   }
 
@@ -40,7 +38,6 @@ export function extractVisibleDiscordMedia(
     return {
       ok: false,
       code: 'MESSAGE_VIEWPORT_NOT_VISIBLE',
-      message: 'メッセージ表示領域が画面内にありません。',
     };
   }
 
@@ -51,7 +48,6 @@ export function extractVisibleDiscordMedia(
     return {
       ok: false,
       code: 'SCAN_FAILED',
-      message: '表示中メディアの確認に失敗しました。',
     };
   }
 }

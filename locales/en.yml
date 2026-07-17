@@ -1,0 +1,137 @@
+manifest:
+  extension_name: Discord Media Exporter
+  extension_description: Select and save Discord media currently visible on screen.
+discord:
+  spoiler_label_terms:
+    - spoiler
+messages:
+  popup_title: Visible media
+  popup_description: After starting collection, use “One page back” at the bottom-right of Discord or scroll manually. Visible attachments are added to this channel’s results. The extension never scrolls continuously on its own.
+  language_label: Display language
+  language_auto: Auto (Chrome language)
+  language_ja: 日本語
+  language_en: English
+  language_manifest_note: The extension name and description follow Chrome’s language and are not changed by this setting.
+  collector_start: Start collection
+  collector_stop: Stop collection
+  launcher_label: Always show the start button in Discord
+  launcher_description: Uses optional Discord site access to show only the start button when you open a channel.
+  launcher_checking: Checking permission…
+  launcher_updating: Updating setting…
+  launcher_denied: 'OFF: Discord site access was not granted.'
+  launcher_on: 'ON: The start button appears when you open a Discord channel.'
+  launcher_off: 'OFF: The start button appears only after you open the popup.'
+  launcher_sync_failed: 'OFF: The permission state could not be synchronized.'
+  launcher_update_failed: The always-show setting could not be updated.
+  launcher_status_failed: The Discord site permission state could not be checked.
+  filter_aria: Filter media
+  filter_label: Type
+  filter_all: All
+  media_image: Image
+  media_video: Video
+  media_file: Other
+  select_visible: Select visible
+  clear_selection: Clear selection
+  clear_collection: Clear collection
+  candidate_list_aria: Media candidates
+  individual_save: Save individually
+  zip_save: Save as ZIP
+  zip_permission_note: Only when saving a ZIP, the extension asks for additional access to retrieve content from the Discord CDN. All selected files are streamed into a temporary ZIP. Nothing is saved if space is insufficient.
+  zip_progress_title: ZIP export status
+  zip_cancel: Cancel ZIP export
+  download_progress_title: Download status
+  progress_list_aria: Status by file
+  legal_note: Select only media that you have the right or permission to save.
+  count: '{count}'
+  selected_count: '{count} selected'
+  restored_collection: Restored {count} collected items.
+  collector_starting: Starting…
+  collector_stopping: Stopping…
+  clearing: Clearing…
+  starting: Starting…
+  checking_space: Checking space…
+  checking_permission: Checking permission…
+  cancelling: Cancelling…
+  collector_started_limit: Collection started. The {limit}-item collection limit has been reached.
+  collector_started_empty: Collection started. You can also use “One page back” at the bottom-right of Discord. There are no attachments in the visible area ({count} collected).
+  collector_started_added: Added {added} items and started collection. You can also use “One page back” at the bottom-right of Discord ({count} collected).
+  collector_stopped: Collection stopped ({count} collected).
+  collection_cleared: Cleared this channel’s collection.
+  storage_available: 'The selected {count} items will be streamed into a ZIP. Estimated temporary space available: {bytes}.'
+  storage_unknown: The selected {count} items will be streamed into a ZIP. Required space could not be checked in advance.
+  cdn_permission_denied: Access to the Discord CDN required for ZIP export was not granted.
+  active_tab_missing: The active tab could not be checked.
+  kind_queued: Queued
+  kind_in_progress: Saving
+  kind_complete: Complete
+  kind_failed: Failed
+  progress_summary: Complete {complete} / In progress {inProgress} / Queued {queued} / Failed {failed}
+  zip_idle: Not started
+  zip_fetching: Fetching
+  zip_packing: Creating ZIP
+  zip_saving: Saving
+  zip_complete: Complete
+  zip_failed: Failed
+  zip_cancelled: Cancelled
+  zip_summary: '{status} / {completed}/{total} items / Input {input} / ZIP {output}'
+  guide_aria: Discord Media Exporter guided collection
+  guide_title: Guided collection
+  guide_instruction: Each action moves only one page in the selected direction.
+  guide_start: Start collection
+  guide_back: One page back
+  guide_forward: One page forward
+  guide_reveal: Reveal visible spoilers
+  guide_stop: Stop
+  guide_inactive: Collection is stopped. Starting collects visible attachments.
+  guide_starting: Starting collection…
+  guide_limit: The {limit}-item collection limit has been reached.
+  guide_collecting: Collecting {count} items.
+  guide_reached_start: Moved to the top. After older posts load, press again if needed.
+  guide_moved_back: Moved back one page. Visible candidates will be collected.
+  guide_at_start: You are at the top. Press again after older posts load.
+  guide_reached_end: Moved to the bottom. After newer posts appear, press again if needed.
+  guide_moved_forward: Moved forward one page. Visible candidates will be collected.
+  guide_at_end: You are at the bottom. Press again after newer posts appear.
+  guide_scroll_unavailable: The message scroll area could not be identified.
+  guide_no_spoilers: There are no spoilers to reveal in the visible area.
+  guide_spoilers_revealed: Revealed {revealed} spoilers. They will be collected after appearing.
+  guide_spoilers_partial: Revealed {revealed}; {failed} could not be revealed.
+  error_INVALID_REQUEST: Invalid request.
+  error_UNEXPECTED_RESPONSE: The operation failed.
+  error_RESPONSE_INVALID: The extension response could not be validated.
+  error_ACTIVE_DOWNLOADS: Wait for the current downloads to finish before scanning again.
+  error_INVALID_CANDIDATES: Some media candidates could not be validated.
+  error_INVALID_SCAN_SCOPE: The scan target could not be validated.
+  error_ACTIVE_DOWNLOADS_CLEAR: Wait for the current downloads to finish before clearing the collection.
+  error_INVALID_CHANNEL_SCOPE: The target channel could not be validated.
+  error_DOWNLOAD_ALREADY_ACTIVE: Downloads are already in progress.
+  error_SELECTION_REQUIRED: Select media to save.
+  error_CANDIDATE_EXPIRED: The media candidates have expired. Scan again.
+  error_CANDIDATE_REVALIDATION_FAILED: A candidate could not be revalidated.
+  error_DOWNLOAD_START_FAILED: The download could not be started.
+  error_DOWNLOAD_INTERRUPTED: The download was interrupted{reason}.
+  error_DOWNLOAD_STATE_RESTORE_FAILED: The download state could not be restored.
+  error_DOWNLOAD_HISTORY_MISSING: The download history could not be checked.
+  error_ZIP_SELECTION_REQUIRED: Select media to save in the ZIP.
+  error_ZIP_FILENAME_CONFLICT: A unique filename could not be created inside the ZIP.
+  error_ZIP_ALREADY_ACTIVE: A ZIP export is already in progress.
+  error_ZIP_ACTIVE_CLEAR: Wait for the ZIP export to finish before clearing.
+  error_ZIP_ACTIVE_DOWNLOAD: Wait for the ZIP export to finish before saving.
+  error_DOWNLOADS_ACTIVE_ZIP: Wait for individual downloads to finish before creating a ZIP.
+  error_ZIP_CANCELLED: ZIP export was cancelled.
+  error_CDN_PERMISSION_DENIED: Access to the Discord CDN required for ZIP export was not granted.
+  error_FETCH_FAILED: '{filename} could not be fetched. Scan again and retry.'
+  error_INVALID_REDIRECT: '{filename} could not be verified as a safe destination.'
+  error_STORAGE_QUOTA_EXCEEDED: There is not enough temporary storage for the ZIP.
+  error_TEMP_WRITE_FAILED: The temporary ZIP file could not be written.
+  error_ZIP_FAILED: The ZIP could not be created.
+  error_SAVE_FAILED: Saving the generated ZIP could not be started.
+  error_DOWNLOAD_NO_SPACE: The ZIP could not be saved because the destination disk is full.
+  error_CONTEXT_LOST: The ZIP state could not be restored. Run the export again.
+  error_COLLECTOR_START_INTERRUPTED: Starting collection was interrupted.
+  error_COLLECTION_REGISTER_FAILED: The collected results could not be registered.
+  error_COLLECTOR_START_FAILED: Collection could not be started.
+  error_NOT_DISCORD_CHANNEL: Open a Discord channel page.
+  error_MESSAGE_VIEWPORT_NOT_FOUND: The message display area could not be identified.
+  error_MESSAGE_VIEWPORT_NOT_VISIBLE: The message display area is not visible.
+  error_SCAN_FAILED: Visible media could not be checked.

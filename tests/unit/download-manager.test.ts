@@ -62,7 +62,7 @@ describe('DownloadManager', () => {
     expect(state.items[1]).toMatchObject({
       filename: 'file-2.png',
       status: 'failed',
-      error: 'ダウンロードを開始できませんでした。',
+      error: { code: 'DOWNLOAD_START_FAILED' },
     });
     expect(state.items.filter((item) => item.status === 'in_progress')).toHaveLength(3);
   });
@@ -83,9 +83,9 @@ describe('DownloadManager', () => {
 
     expect(state.items[0]).toMatchObject({
       status: 'failed',
-      error: 'ダウンロードが中断されました (SERVER_FORBIDDEN)。',
+      error: { code: 'DOWNLOAD_INTERRUPTED', params: { reason: 'SERVER_FORBIDDEN' } },
     });
-    expect(state.items[0]!.error).not.toContain('https://');
+    expect(state.items[0]!.error?.params?.reason).not.toContain('https://');
     expect(state.items[3]!.status).toBe('in_progress');
   });
 
@@ -150,6 +150,30 @@ describe('DownloadManager', () => {
     expect(await manager.getCandidateCollection(scope)).toEqual({ scope, candidates: [candidate] });
     expect(await manager.clearCandidateCollection(scope)).toEqual({ scope: null, candidates: [] });
     expect(await manager.getCandidateCollection(scope)).toEqual({ scope: null, candidates: [] });
+  });
+
+  it('migrates a legacy localized download error to a stable generic code', async () => {
+    const candidate = createCandidate(1);
+    const manager = new DownloadManager(
+      new FakeDownloadPlatform({
+        candidateRegistry: [candidate],
+        candidateCollectionScope: scope,
+        downloadBatch: {
+          items: [
+            {
+              candidateId: candidate.id,
+              filename: candidate.suggestedFilename,
+              status: 'failed',
+              error: 'ダウンロードを開始できませんでした。',
+            },
+          ],
+        },
+      }),
+    );
+
+    expect((await manager.getDownloadState()).items[0]?.error).toEqual({
+      code: 'DOWNLOAD_INTERRUPTED',
+    });
   });
 
   it('caps a collection accumulated across scans at 500 candidates', async () => {

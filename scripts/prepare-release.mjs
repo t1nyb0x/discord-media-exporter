@@ -4,7 +4,7 @@ import { verifyRelease } from './verify-release.mjs';
 import { writeReleaseChecksum } from './write-checksum.mjs';
 
 const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
-const checks = ['lint', 'typecheck', 'test', 'format:check', 'zip'];
+const checks = ['i18n:check', 'lint', 'typecheck', 'test', 'format:check', 'zip'];
 
 for (const script of checks) {
   const result = spawnSync(pnpmCommand, [script], {

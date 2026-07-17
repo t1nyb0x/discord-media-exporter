@@ -122,8 +122,8 @@ describe('ChromeZipExportManager', () => {
 
     const state = await manager.getZipExportState();
     expect(state.status).toBe('failed');
-    expect(state.error).toContain('photo.png');
-    expect(state.error).not.toContain('https://');
+    expect(state.error).toEqual({ code: 'FETCH_FAILED', params: { filename: 'photo.png' } });
+    expect(state.error?.params?.filename).not.toContain('https://');
     expect(browserMocks.download).not.toHaveBeenCalled();
     expect(browserMocks.removePermissions).toHaveBeenCalledOnce();
   });
@@ -162,7 +162,7 @@ describe('ChromeZipExportManager', () => {
 
     expect(await manager.getZipExportState()).toMatchObject({
       status: 'failed',
-      error: expect.stringContaining('保存先ディスクの空き容量'),
+      error: { code: 'DOWNLOAD_NO_SPACE' },
     });
     expect(browserMocks.removePermissions).toHaveBeenCalledOnce();
     expect(browserMocks.closeDocument).toHaveBeenCalledOnce();
@@ -190,10 +190,28 @@ describe('ChromeZipExportManager', () => {
 
     expect(await manager.getZipExportState()).toMatchObject({
       status: 'failed',
-      error: expect.stringContaining('保存先ディスクの空き容量'),
+      error: { code: 'DOWNLOAD_NO_SPACE' },
     });
     expect(browserMocks.removePermissions).toHaveBeenCalledOnce();
     expect(browserMocks.closeDocument).toHaveBeenCalledOnce();
+  });
+
+  it('migrates a legacy localized ZIP error without displaying the old language', async () => {
+    browserMocks.stored = {
+      zipExportState: {
+        status: 'failed',
+        totalItems: 1,
+        completedItems: 0,
+        processedBytes: 0,
+        error: 'ZIPを生成できませんでした。',
+      },
+    };
+    const manager = await import('../../src/platform/chrome/zip-export-manager');
+
+    expect(await manager.getZipExportState()).toMatchObject({
+      status: 'failed',
+      error: { code: 'CONTEXT_LOST' },
+    });
   });
 });
 

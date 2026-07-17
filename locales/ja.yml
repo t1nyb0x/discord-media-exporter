@@ -1,0 +1,138 @@
+manifest:
+  extension_name: Discord Media Exporter
+  extension_description: 表示中のDiscordメディアを選択して保存します。
+discord:
+  spoiler_label_terms:
+    - スポイラー
+    - ネタバレ
+messages:
+  popup_title: 表示中メディア
+  popup_description: 収集開始後は、Discord画面右下の「1画面戻る」を押すか手動でスクロールしてください。表示された添付を同じチャンネルの結果へ追加します。無人で連続スクロールしません。
+  language_label: 表示言語
+  language_auto: 自動（Chromeの言語）
+  language_ja: 日本語
+  language_en: English
+  language_manifest_note: 拡張機能の名前と説明はChromeの言語に従い、この設定では変更されません。
+  collector_start: 自動収集を開始
+  collector_stop: 自動収集を停止
+  launcher_label: Discordで開始ボタンを常に表示
+  launcher_description: 任意のDiscordサイト権限を使い、チャンネルを開いた時点で開始ボタンだけを表示します。
+  launcher_checking: 権限状態を確認中…
+  launcher_updating: 設定を更新中…
+  launcher_denied: 'OFF: Discordサイト権限が許可されませんでした。'
+  launcher_on: 'ON: Discordチャンネルを開くと開始ボタンを表示します。'
+  launcher_off: 'OFF: popupを開いた時だけ開始ボタンを表示します。'
+  launcher_sync_failed: 'OFF: 権限状態を同期できませんでした。'
+  launcher_update_failed: 常時表示の設定を更新できませんでした。
+  launcher_status_failed: Discordサイト権限の状態を確認できませんでした。
+  filter_aria: メディアの絞り込み
+  filter_label: 種類
+  filter_all: すべて
+  media_image: 画像
+  media_video: 動画
+  media_file: その他
+  select_visible: 表示中を選択
+  clear_selection: 解除
+  clear_collection: 収集をクリア
+  candidate_list_aria: メディア候補
+  individual_save: 個別に保存
+  zip_save: ZIPにまとめて保存
+  zip_permission_note: ZIP保存時だけ、Discord CDNから内容を取得する追加権限を確認します。選択した全候補を一時ZIPへ逐次書き込みます。空き容量不足時は保存せず中止します。
+  zip_progress_title: ZIP出力状況
+  zip_cancel: ZIP出力をキャンセル
+  download_progress_title: ダウンロード状況
+  progress_list_aria: ファイルごとの状態
+  legal_note: 保存する権利・許可のあるメディアだけを選択してください。
+  count: '{count}件'
+  selected_count: '{count}件を選択中'
+  restored_collection: '{count}件の収集結果を復元しました。'
+  collector_starting: 開始中…
+  collector_stopping: 停止中…
+  clearing: クリア中…
+  starting: 開始中…
+  checking_space: 容量を確認中…
+  checking_permission: 権限を確認中…
+  cancelling: キャンセル中…
+  collector_started_limit: 自動収集を開始しました。収集上限の{limit}件に達しています。
+  collector_started_empty: 自動収集を開始しました。Discord画面右下の「1画面戻る」も利用できます。現在の表示範囲に添付はありません（収集中 {count}件）。
+  collector_started_added: '{added}件を追加し、自動収集を開始しました。Discord画面右下の「1画面戻る」も利用できます（収集中 {count}件）。'
+  collector_stopped: 自動収集を停止しました（収集中 {count}件）。
+  collection_cleared: このチャンネルの収集結果をクリアしました。
+  storage_available: '選択した{count}件をZIPへ逐次書き込みます。一時領域の推定空き容量: {bytes}。'
+  storage_unknown: 選択した{count}件をZIPへ逐次書き込みます。必要容量は事前に確認できませんでした。
+  cdn_permission_denied: ZIP保存に必要なDiscord CDNへのアクセスが許可されませんでした。
+  active_tab_missing: 対象タブを確認できませんでした。
+  kind_queued: 待機
+  kind_in_progress: 保存中
+  kind_complete: 完了
+  kind_failed: 失敗
+  progress_summary: 完了 {complete} / 進行中 {inProgress} / 待機 {queued} / 失敗 {failed}
+  zip_idle: 未実行
+  zip_fetching: 取得中
+  zip_packing: ZIP作成中
+  zip_saving: 保存中
+  zip_complete: 完了
+  zip_failed: 失敗
+  zip_cancelled: キャンセル済み
+  zip_summary: '{status} / {completed}/{total}件 / 入力 {input} / ZIP {output}'
+  guide_aria: Discord Media Exporter ガイド付き収集
+  guide_title: ガイド付き収集
+  guide_instruction: 操作ごとに選択した方向へ1画面だけ移動します。
+  guide_start: 自動収集を開始
+  guide_back: 1画面戻る
+  guide_forward: 1画面進む
+  guide_reveal: 表示中のスポイラーを解除
+  guide_stop: 停止
+  guide_inactive: 自動収集は停止中です。開始すると表示中の添付を収集します。
+  guide_starting: 自動収集を開始しています…
+  guide_limit: 収集上限の{limit}件に達しました。
+  guide_collecting: '{count}件を収集中です。'
+  guide_reached_start: 上端へ移動しました。読み込み後、必要ならもう一度押してください。
+  guide_moved_back: 1画面戻りました。表示された候補を収集します。
+  guide_at_start: 現在は上端です。古い投稿の読み込み後にもう一度押してください。
+  guide_reached_end: 下端へ移動しました。新しい投稿の表示後、必要ならもう一度押してください。
+  guide_moved_forward: 1画面進みました。表示された候補を収集します。
+  guide_at_end: 現在は下端です。新しい投稿の表示後にもう一度押してください。
+  guide_scroll_unavailable: メッセージのスクロール領域を確認できませんでした。
+  guide_no_spoilers: 現在の表示範囲に解除できるスポイラーはありません。
+  guide_spoilers_revealed: '{revealed}件のスポイラーを解除しました。表示後に収集します。'
+  guide_spoilers_partial: '{revealed}件を解除し、{failed}件は解除できませんでした。'
+  error_INVALID_REQUEST: 不正なリクエストです。
+  error_UNEXPECTED_RESPONSE: 処理に失敗しました。
+  error_RESPONSE_INVALID: 拡張機能からの応答を検証できませんでした。
+  error_ACTIVE_DOWNLOADS: 進行中のダウンロードが完了してから再スキャンしてください。
+  error_INVALID_CANDIDATES: 検証できないメディア候補が含まれています。
+  error_INVALID_SCAN_SCOPE: スキャン対象を検証できませんでした。
+  error_ACTIVE_DOWNLOADS_CLEAR: 進行中のダウンロードが完了してから収集結果をクリアしてください。
+  error_INVALID_CHANNEL_SCOPE: 対象チャンネルを検証できませんでした。
+  error_DOWNLOAD_ALREADY_ACTIVE: ダウンロードは既に進行中です。
+  error_SELECTION_REQUIRED: 保存するメディアを選択してください。
+  error_CANDIDATE_EXPIRED: メディア候補の有効期限が切れました。再スキャンしてください。
+  error_CANDIDATE_REVALIDATION_FAILED: 候補を再検証できませんでした。
+  error_DOWNLOAD_START_FAILED: ダウンロードを開始できませんでした。
+  error_DOWNLOAD_INTERRUPTED: ダウンロードが中断されました{reason}。
+  error_DOWNLOAD_STATE_RESTORE_FAILED: ダウンロード状態を復元できませんでした。
+  error_DOWNLOAD_HISTORY_MISSING: ダウンロード履歴を確認できませんでした。
+  error_ZIP_SELECTION_REQUIRED: ZIPに保存するメディアを選択してください。
+  error_ZIP_FILENAME_CONFLICT: ZIP内のファイル名を一意にできませんでした。
+  error_ZIP_ALREADY_ACTIVE: ZIP出力は既に進行中です。
+  error_ZIP_ACTIVE_CLEAR: ZIP出力の完了後にクリアしてください。
+  error_ZIP_ACTIVE_DOWNLOAD: ZIP出力の完了後に保存してください。
+  error_DOWNLOADS_ACTIVE_ZIP: 個別ダウンロードの完了後にZIPを作成してください。
+  error_ZIP_CANCELLED: ZIP出力をキャンセルしました。
+  error_CDN_PERMISSION_DENIED: ZIP保存に必要なDiscord CDNへのアクセスが許可されませんでした。
+  error_FETCH_FAILED: '{filename}を取得できませんでした。再スキャンしてから試してください。'
+  error_INVALID_REDIRECT: '{filename}を安全な取得先として確認できませんでした。'
+  error_STORAGE_QUOTA_EXCEEDED: ZIP一時ファイルを保存する空き容量が不足しています。
+  error_TEMP_WRITE_FAILED: ZIP一時ファイルへ書き込めませんでした。
+  error_ZIP_FAILED: ZIPを生成できませんでした。
+  error_SAVE_FAILED: 生成したZIPの保存を開始できませんでした。
+  error_DOWNLOAD_NO_SPACE: 保存先ディスクの空き容量が不足しているため、ZIPを保存できませんでした。
+  error_CONTEXT_LOST: ZIP生成状態を復元できませんでした。もう一度実行してください。
+  error_COLLECTOR_START_INTERRUPTED: 自動収集の開始が中断されました。
+  error_COLLECTION_REGISTER_FAILED: 収集結果を登録できませんでした。
+  error_COLLECTOR_START_FAILED: 自動収集を開始できませんでした。
+  error_NOT_DISCORD_CHANNEL: Discordのチャンネル画面を開いてください。
+  error_MESSAGE_VIEWPORT_NOT_FOUND: メッセージ表示領域を確認できませんでした。
+  error_MESSAGE_VIEWPORT_NOT_VISIBLE: メッセージ表示領域が画面内にありません。
+  error_SCAN_FAILED: 表示中メディアの確認に失敗しました。

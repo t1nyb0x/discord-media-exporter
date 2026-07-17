@@ -7,6 +7,7 @@ import type {
 import { isValidMediaCandidate } from './validation';
 import { isRecord } from '../shared/messages';
 import { discordChannelScope } from './url';
+import { DomainError, isUserFacingError, type UserFacingError } from './errors';
 
 const MAX_CONCURRENT_DOWNLOADS = 3;
 export const MAX_COLLECTED_CANDIDATES = 500;
@@ -45,16 +46,15 @@ export class DownloadManager {
   async registerCandidates(candidates: unknown[], scope: string): Promise<CandidateCollection> {
     await this.ensureInitialized();
     if (this.hasActiveBatch()) {
-      throw new Error('進行中のダウンロードが完了してから再スキャンしてください。');
+      throw new DomainError({ code: 'ACTIVE_DOWNLOADS' });
     }
 
     const validCandidates = candidates.filter(isValidMediaCandidate);
     if (validCandidates.length !== candidates.length) {
-      throw new Error('検証できないメディア候補が含まれています。');
+      throw new DomainError({ code: 'INVALID_CANDIDATES' });
     }
 
-    if (discordChannelScope(scope) !== scope)
-      throw new Error('スキャン対象を検証できませんでした。');
+    if (discordChannelScope(scope) !== scope) throw new DomainError({ code: 'INVALID_SCAN_SCOPE' });
     if (this.collectionScope !== scope) {
       this.candidateRegistry.clear();
       this.collectionScope = scope;
@@ -85,10 +85,10 @@ export class DownloadManager {
   async clearCandidateCollection(scope: string): Promise<CandidateCollection> {
     await this.ensureInitialized();
     if (this.hasActiveBatch()) {
-      throw new Error('進行中のダウンロードが完了してから収集結果をクリアしてください。');
+      throw new DomainError({ code: 'ACTIVE_DOWNLOADS_CLEAR' });
     }
     if (discordChannelScope(scope) !== scope)
-      throw new Error('対象チャンネルを検証できませんでした。');
+      throw new DomainError({ code: 'INVALID_CHANNEL_SCOPE' });
     if (this.collectionScope === scope) {
       this.candidateRegistry.clear();
       this.collectionScope = null;
@@ -100,7 +100,7 @@ export class DownloadManager {
   /** Creates and starts a download batch for the selected candidate identifiers. */
   async startDownloads(candidateIds: string[]): Promise<DownloadBatchState> {
     await this.ensureInitialized();
-    if (this.hasActiveBatch()) throw new Error('ダウンロードは既に進行中です。');
+    if (this.hasActiveBatch()) throw new DomainError({ code: 'DOWNLOAD_ALREADY_ACTIVE' });
 
     const candidates = this.resolveRegisteredCandidates(candidateIds);
     const items: DownloadItemState[] = candidates.map((candidate) => ({
@@ -125,19 +125,19 @@ export class DownloadManager {
   /** Resolves a selection against the registry without using checkbox selection order. */
   private resolveRegisteredCandidates(candidateIds: string[]): MediaCandidate[] {
     const requestedIds = new Set(candidateIds);
-    if (requestedIds.size === 0) throw new Error('保存するメディアを選択してください。');
+    if (requestedIds.size === 0) throw new DomainError({ code: 'SELECTION_REQUIRED' });
 
     const candidates: MediaCandidate[] = [];
     for (const candidate of this.candidateRegistry.values()) {
       if (!requestedIds.has(candidate.id)) continue;
       if (!isValidMediaCandidate(candidate)) {
-        throw new Error('メディア候補の有効期限が切れました。再スキャンしてください。');
+        throw new DomainError({ code: 'CANDIDATE_EXPIRED' });
       }
       candidates.push(candidate);
       requestedIds.delete(candidate.id);
     }
     if (requestedIds.size > 0) {
-      throw new Error('メディア候補の有効期限が切れました。再スキャンしてください。');
+      throw new DomainError({ code: 'CANDIDATE_EXPIRED' });
     }
     return candidates;
   }
@@ -173,7 +173,7 @@ export class DownloadManager {
       delete item.error;
     } else {
       item.status = 'failed';
-      item.error = interruptReason(error);
+      item.error = interruptError(error);
     }
     this.activeDownloadIds.delete(downloadId);
 
@@ -190,7 +190,7 @@ export class DownloadManager {
       const candidate = this.candidateRegistry.get(item.candidateId);
       if (candidate === undefined || !isValidMediaCandidate(candidate)) {
         item.status = 'failed';
-        item.error = '候補を再検証できませんでした。';
+        item.error = { code: 'CANDIDATE_REVALIDATION_FAILED' };
         await this.persistSession();
         continue;
       }
@@ -204,7 +204,7 @@ export class DownloadManager {
         this.activeDownloadIds.set(downloadId, item.candidateId);
       } catch {
         item.status = 'failed';
-        item.error = 'ダウンロードを開始できませんでした。';
+        item.error = { code: 'DOWNLOAD_START_FAILED' };
       }
 
       await this.persistSession();
@@ -254,7 +254,7 @@ export class DownloadManager {
     const rawBatch = stored.downloadBatch;
     if (isRecord(rawBatch) && Array.isArray(rawBatch.items)) {
       this.batchState = {
-        items: rawBatch.items.filter(isDownloadItemState).map((item) => ({ ...item })),
+        items: rawBatch.items.filter(isDownloadItemState).map(migrateDownloadItemState),
       };
       await this.reconcileRestoredDownloads();
       await this.persistSession();
@@ -267,20 +267,20 @@ export class DownloadManager {
       if (item.status !== 'in_progress') continue;
       if (item.downloadId === undefined) {
         item.status = 'failed';
-        item.error = 'ダウンロード状態を復元できませんでした。';
+        item.error = { code: 'DOWNLOAD_STATE_RESTORE_FAILED' };
         continue;
       }
 
       const current = await this.platform.findDownload(item.downloadId);
       if (current === null) {
         item.status = 'failed';
-        item.error = 'ダウンロード履歴を確認できませんでした。';
+        item.error = { code: 'DOWNLOAD_HISTORY_MISSING' };
       } else if (current.state === 'complete') {
         item.status = 'complete';
         delete item.error;
       } else if (current.state === 'interrupted') {
         item.status = 'failed';
-        item.error = interruptReason(current.error);
+        item.error = interruptError(current.error);
       } else {
         this.activeDownloadIds.set(item.downloadId, item.candidateId);
       }
@@ -306,16 +306,34 @@ export class DownloadManager {
 }
 
 /** Converts a platform interruption reason into a user-facing message. */
-function interruptReason(reason: string | undefined): string {
-  if (reason === undefined) return 'ダウンロードが中断されました。';
-  return `ダウンロードが中断されました (${reason})。`;
+function interruptError(reason: string | undefined): UserFacingError {
+  return reason === undefined
+    ? { code: 'DOWNLOAD_INTERRUPTED' }
+    : { code: 'DOWNLOAD_INTERRUPTED', params: { reason } };
 }
 
 /** Validates a persisted download item before restoring it. */
-function isDownloadItemState(value: unknown): value is DownloadItemState {
+type PersistedDownloadItemState = Omit<DownloadItemState, 'error'> & {
+  error?: DownloadItemState['error'] | string;
+};
+
+function isDownloadItemState(value: unknown): value is PersistedDownloadItemState {
   if (!isRecord(value)) return false;
   if (typeof value.candidateId !== 'string' || typeof value.filename !== 'string') return false;
   if (!['queued', 'in_progress', 'complete', 'failed'].includes(String(value.status))) return false;
   if (value.downloadId !== undefined && typeof value.downloadId !== 'number') return false;
-  return value.error === undefined || typeof value.error === 'string';
+  return (
+    value.error === undefined || typeof value.error === 'string' || isUserFacingError(value.error)
+  );
+}
+
+/** Converts pre-i18n string errors without retaining locale-specific persisted prose. */
+function migrateDownloadItemState(value: PersistedDownloadItemState): DownloadItemState {
+  const { error, ...item } = value;
+  return {
+    ...item,
+    ...(error === undefined
+      ? {}
+      : { error: typeof error === 'string' ? { code: 'DOWNLOAD_INTERRUPTED' } : error }),
+  };
 }

@@ -30,7 +30,7 @@ describe('ZIP export domain', () => {
   });
 
   it('rejects an empty selection and accepts all 500 collected candidates', () => {
-    expect(() => prepareZipEntries([])).toThrow('選択');
+    expect(() => prepareZipEntries([])).toThrow('ZIP_SELECTION_REQUIRED');
     const entries = prepareZipEntries(
       Array.from({ length: 500 }, (_, index) => createCandidate(index, `file-${index}.png`)),
     );

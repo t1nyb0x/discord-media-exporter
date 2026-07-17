@@ -13,6 +13,7 @@ const browserMocks = vi.hoisted(() => ({
   queryTabs: vi.fn(),
   executeScript: vi.fn(),
   requestPermission: vi.fn(),
+  localePreference: 'auto',
 }));
 
 vi.mock('wxt/browser', () => ({
@@ -21,12 +22,23 @@ vi.mock('wxt/browser', () => ({
     tabs: { query: browserMocks.queryTabs, sendMessage: browserMocks.sendTabMessage },
     scripting: { executeScript: browserMocks.executeScript },
     permissions: { request: browserMocks.requestPermission, remove: vi.fn() },
+    i18n: { getUILanguage: () => 'ja-JP' },
+    storage: {
+      local: {
+        get: vi.fn(async () => ({ localePreference: browserMocks.localePreference })),
+        set: vi.fn(async (values: { localePreference?: string }) => {
+          if (values.localePreference !== undefined)
+            browserMocks.localePreference = values.localePreference;
+        }),
+      },
+    },
   },
 }));
 
 describe('popup scan collection', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    browserMocks.localePreference = 'auto';
   });
 
   afterEach(() => {
@@ -283,6 +295,48 @@ describe('popup scan collection', () => {
       files: ['scan.js'],
     });
     expect(browserMocks.executeScript).toHaveBeenCalledTimes(3);
+  });
+
+  it('switches the popup language immediately without losing collection state', async () => {
+    vi.useFakeTimers();
+    browserMocks.queryTabs.mockResolvedValue([{ id: 1, url: scope }]);
+    browserMocks.sendTabMessage.mockResolvedValue({
+      type: 'MEDIA_COLLECTOR_STATUS',
+      active: false,
+    });
+    browserMocks.sendMessage.mockImplementation(async (request: { type: string }) => {
+      if (request.type === 'GET_SCAN_COLLECTION') {
+        return {
+          ok: true,
+          type: 'SCAN_COLLECTION',
+          collection: { scope, candidates: [firstCandidate] },
+        };
+      }
+      if (request.type === 'GET_DISCORD_LAUNCHER_SETTING') {
+        return { ok: true, type: 'DISCORD_LAUNCHER_SETTING', enabled: false };
+      }
+      if (request.type === 'GET_DOWNLOAD_STATUS')
+        return { ok: true, type: 'DOWNLOAD_STATUS', state: { items: [] } };
+      return {
+        ok: true,
+        type: 'ZIP_EXPORT_STATUS',
+        state: { status: 'idle', totalItems: 0, completedItems: 0, processedBytes: 0 },
+      };
+    });
+
+    loadPopupFixture();
+    await import('../../entrypoints/popup/main');
+    await flushPromises();
+    const select = document.getElementById('language-select') as HTMLSelectElement;
+    select.value = 'en';
+    select.dispatchEvent(new Event('change'));
+    await flushPromises();
+
+    expect(document.documentElement.lang).toBe('en');
+    expect(document.querySelector('h1')?.textContent).toBe('Visible media');
+    expect(document.getElementById('candidate-count')?.textContent).toBe('1');
+    expect(document.querySelectorAll('#candidate-list li')).toHaveLength(1);
+    expect(document.getElementById('notice')?.textContent).toContain('Restored 1');
   });
 });
 

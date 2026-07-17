@@ -6,6 +6,7 @@ import {
   scrollOnePageForward,
 } from '../../src/extractors/discord/guided-scroll';
 import { findMessageScrollContainer } from '../../src/extractors/discord/message-viewport';
+import { createTranslator } from '../../src/shared/i18n';
 
 describe('guided scroll collection', () => {
   afterEach(() => {
@@ -130,9 +131,30 @@ describe('guided scroll collection', () => {
     controls.remove();
   });
 
+  it('re-renders the current logical state when its translator changes', () => {
+    const controls = new GuidedCollectionControls(document, {
+      onStart: vi.fn(async () => ({ ok: true as const, collectedCount: 4 })),
+      onStepBackward: vi.fn(() => ({ status: 'at_start' as const })),
+      onStepForward: vi.fn(() => ({ status: 'at_end' as const })),
+      onRevealSpoilers: vi.fn(() => ({ revealed: 0, failed: 0 })),
+      onStop: vi.fn(),
+    });
+    controls.showActive(4);
+    const host = document.getElementById('discord-media-exporter-guided-controls')!;
+
+    controls.setTranslator(createTranslator('en'));
+
+    expect(host.shadowRoot!.textContent).toContain('Collecting 4 items.');
+    expect(host.shadowRoot!.textContent).toContain('One page back');
+    controls.remove();
+  });
+
   it('keeps the launcher inactive when collection cannot start', async () => {
     const controls = new GuidedCollectionControls(document, {
-      onStart: vi.fn(async () => ({ ok: false as const, message: '開始できませんでした。' })),
+      onStart: vi.fn(async () => ({
+        ok: false as const,
+        error: { code: 'COLLECTOR_START_FAILED' as const },
+      })),
       onStepBackward: vi.fn(() => ({ status: 'at_start' as const })),
       onStepForward: vi.fn(() => ({ status: 'at_end' as const })),
       onRevealSpoilers: vi.fn(() => ({ revealed: 0, failed: 0 })),

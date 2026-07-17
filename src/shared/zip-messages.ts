@@ -87,7 +87,8 @@ export function isZipBackgroundEvent(value: unknown): value is ZipBackgroundEven
     return (
       typeof value.code === 'string' &&
       ZIP_ERROR_CODES.has(value.code) &&
-      (value.filename === undefined || typeof value.filename === 'string') &&
+      (value.filename === undefined ||
+        (typeof value.filename === 'string' && value.filename.length <= 240)) &&
       (value.cancelled === undefined || typeof value.cancelled === 'boolean')
     );
   }

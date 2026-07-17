@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,88 +10,86 @@
       <header class="header">
         <div>
           <p class="eyebrow">Discord Media Exporter</p>
-          <h1>表示中メディア</h1>
+          <h1 data-i18n="popup_title"></h1>
         </div>
-        <span id="candidate-count" class="count" aria-live="polite">0件</span>
+        <span id="candidate-count" class="count" aria-live="polite"></span>
       </header>
 
-      <p class="description">
-        収集開始後は、Discord画面右下の「1画面戻る」を押すか手動でスクロールしてください。表示された添付を同じチャンネルの結果へ追加します。無人で連続スクロールしません。
-      </p>
+      <p class="description" data-i18n="popup_description"></p>
 
-      <button id="scan-button" class="button button-primary" type="button">自動収集を開始</button>
+      <section class="language-setting">
+        <label for="language-select" data-i18n="language_label"></label>
+        <select id="language-select">
+          <option value="auto" data-i18n="language_auto"></option>
+          <option value="ja" data-i18n="language_ja"></option>
+          <option value="en" data-i18n="language_en"></option>
+        </select>
+        <p class="language-note" data-i18n="language_manifest_note"></p>
+      </section>
+
+      <button id="scan-button" class="button button-primary" type="button"></button>
 
       <section class="launcher-setting" aria-labelledby="launcher-setting-label">
         <label class="launcher-setting-row" for="launcher-setting-toggle">
           <span>
-            <span id="launcher-setting-label" class="launcher-setting-title"
-              >Discordで開始ボタンを常に表示</span
-            >
-            <span class="launcher-setting-description"
-              >任意のDiscordサイト権限を使い、チャンネルを開いた時点で開始ボタンだけを表示します。</span
-            >
+            <span
+              id="launcher-setting-label"
+              class="launcher-setting-title"
+              data-i18n="launcher_label"
+            ></span>
+            <span class="launcher-setting-description" data-i18n="launcher_description"></span>
           </span>
           <input id="launcher-setting-toggle" type="checkbox" role="switch" disabled />
         </label>
-        <p id="launcher-setting-status" class="launcher-setting-status" aria-live="polite">
-          権限状態を確認中…
-        </p>
+        <p id="launcher-setting-status" class="launcher-setting-status" aria-live="polite"></p>
       </section>
 
       <section id="results" class="results" hidden>
-        <div class="toolbar" aria-label="メディアの絞り込み">
-          <label class="filter-label" for="kind-filter">種類</label>
+        <div class="toolbar" data-i18n-aria-label="filter_aria">
+          <label class="filter-label" for="kind-filter" data-i18n="filter_label"></label>
           <select id="kind-filter">
-            <option value="all">すべて</option>
-            <option value="image">画像</option>
-            <option value="video">動画</option>
-            <option value="file">その他</option>
+            <option value="all" data-i18n="filter_all"></option>
+            <option value="image" data-i18n="media_image"></option>
+            <option value="video" data-i18n="media_video"></option>
+            <option value="file" data-i18n="media_file"></option>
           </select>
-          <button id="select-all-button" class="button button-quiet" type="button">
-            表示中を選択
-          </button>
-          <button id="clear-button" class="button button-quiet" type="button">解除</button>
-          <button id="clear-collection-button" class="button button-quiet" type="button">
-            収集をクリア
-          </button>
+          <button id="select-all-button" class="button button-quiet" type="button"></button>
+          <button id="clear-button" class="button button-quiet" type="button"></button>
+          <button id="clear-collection-button" class="button button-quiet" type="button"></button>
         </div>
 
-        <ul id="candidate-list" class="candidate-list" aria-label="メディア候補"></ul>
+        <ul id="candidate-list" class="candidate-list"></ul>
 
         <div class="download-panel">
-          <p id="selection-summary">0件を選択中</p>
+          <p id="selection-summary"></p>
           <div class="save-actions">
-            <button id="download-button" class="button button-primary" type="button" disabled>
-              個別に保存
-            </button>
-            <button id="zip-button" class="button button-secondary" type="button" disabled>
-              ZIPにまとめて保存
-            </button>
+            <button
+              id="download-button"
+              class="button button-primary"
+              type="button"
+              disabled
+            ></button>
+            <button id="zip-button" class="button button-secondary" type="button" disabled></button>
           </div>
-          <p class="zip-permission-note">
-            ZIP保存時だけ、Discord
-            CDNから内容を取得する追加権限を確認します。選択した全候補を一時ZIPへ逐次書き込みます。空き容量不足時は保存せず中止します。
-          </p>
+          <p class="zip-permission-note" data-i18n="zip_permission_note"></p>
         </div>
       </section>
 
       <section id="zip-progress" class="progress" aria-live="polite" hidden>
-        <h2>ZIP出力状況</h2>
+        <h2 data-i18n="zip_progress_title"></h2>
         <p id="zip-progress-summary"></p>
         <p id="zip-progress-detail" class="zip-progress-detail"></p>
-        <button id="zip-cancel-button" class="button button-danger" type="button" hidden>
-          ZIP出力をキャンセル
-        </button>
+        <button id="zip-cancel-button" class="button button-danger" type="button" hidden></button>
       </section>
 
       <section id="progress" class="progress" aria-live="polite" hidden>
-        <h2>ダウンロード状況</h2>
+        <h2 data-i18n="download_progress_title"></h2>
         <p id="progress-summary"></p>
-        <ul id="progress-list" class="progress-list" aria-label="ファイルごとの状態"></ul>
+        <ul id="progress-list" class="progress-list"></ul>
       </section>
 
       <p id="notice" class="notice" role="status" aria-live="polite"></p>
-      <p class="legal-note">保存する権利・許可のあるメディアだけを選択してください。</p>
+      <p class="legal-note" data-i18n="legal_note"></p>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>

@@ -19,6 +19,8 @@ const requiredFiles = [
   'offscreen.html',
   'popup.html',
   'scan.js',
+  '_locales/en/messages.json',
+  '_locales/ja/messages.json',
 ];
 const forbiddenPatterns = [
   /(^|\/)tests?(\/|$)/i,
@@ -65,6 +67,17 @@ export async function verifyRelease() {
   }
   if (manifest.content_scripts !== undefined) {
     throw new Error('Release manifest must not contain persistent content_scripts.');
+  }
+  if (manifest.default_locale !== 'en') {
+    throw new Error(`Unexpected default_locale: ${manifest.default_locale ?? 'missing'}`);
+  }
+  if (manifest.name !== '__MSG_extension_name__') {
+    throw new Error(`Unexpected localized manifest name: ${manifest.name ?? 'missing'}`);
+  }
+  if (manifest.description !== '__MSG_extension_description__') {
+    throw new Error(
+      `Unexpected localized manifest description: ${manifest.description ?? 'missing'}`,
+    );
   }
 
   const packageJson = JSON.parse(await readFile(path.join(projectRoot, 'package.json'), 'utf8'));
