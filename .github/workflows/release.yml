@@ -4,6 +4,17 @@ on:
   push:
     branches:
       - main
+    # Run only when files that can change the packaged extension are updated.
+    # Documentation, tests, CI, and release tooling alone must not create a new version.
+    paths:
+      - 'entrypoints/**'
+      - 'src/**'
+      - 'public/**'
+      - 'locales/**'
+      - 'wxt.config.ts'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'LICENSE'
 
 permissions:
   contents: write
@@ -55,14 +66,17 @@ jobs:
           tag="v${version}"
           archive=".output/discord-media-exporter-${version}-chrome.zip"
           checksum="${archive}.sha256"
+          notes=".output/release-notes.md"
 
           test -f "$archive"
           test -f "$checksum"
+          test -f "$notes"
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
           echo "checksum=$checksum" >> "$GITHUB_OUTPUT"
+          echo "notes=$notes" >> "$GITHUB_OUTPUT"
 
       - name: Ensure the version has not been released
         env:
@@ -86,6 +100,7 @@ jobs:
           VERSION: ${{ steps.release.outputs.version }}
           ARCHIVE: ${{ steps.release.outputs.archive }}
           CHECKSUM: ${{ steps.release.outputs.checksum }}
+          NOTES: ${{ steps.release.outputs.notes }}
         run: |
           gh release create "$TAG" \
             "$ARCHIVE" \
@@ -93,5 +108,5 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "Discord Media Exporter $VERSION" \
-            --generate-notes \
+            --notes-file "$NOTES" \
             --latest

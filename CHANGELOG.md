@@ -23,6 +23,10 @@
 - 動的文言、ファイル名、エラーparamsは`textContent`と属性APIだけで表示し、HTMLとして注入しない
 - locale、error code、error paramsをallowlistで検証し、追加権限・外部翻訳サービス・依存関係を追加しない
 
+### Documentation
+
+- バージョン別の`docs/release-notes-*.md`を廃止し、利用者向け変更履歴とGitHub Release本文を`CHANGELOG.md`へ一本化
+
 ## [0.9.0] - 2026-07-17
 
 ### Added
@@ -96,6 +100,10 @@
 ### Known limitations
 
 - Discord CDN URLの有効期限切れや取得失敗時はサムネイルを表示できない
+
+### Verification
+
+- Project ownerが2026-07-17にChrome実機でサムネイル表示を確認し、問題なしと判断。ChromeバージョンとOSは未記録
 
 ## [0.6.1] - 2026-07-17
 

@@ -8,7 +8,7 @@
 - Phase 1: 基盤、合成 fixture、自動テスト、production build、実 Discord の基本スモークテストは完了
 - Phase 1 残作業: スポイラー等の画面バリエーションの追加検証
 - Phase 2: 候補単位の失敗表示、キュー異常系、再起動後の状態再照合を実装済み
-- Phase 3: `0.2.0` の配布 ZIP、SHA-256、リリースノート、限定テスト手順、保守手順を作成済み
+- Phase 3: `0.2.0`の配布ZIP、SHA-256、CHANGELOG、限定テスト手順、保守手順を作成済み
 - Phase 3: 安全な DOM 非対応、非表示要素、アクセシビリティ、500 件の候補上限を自動テスト済み
 - Phase 3: Project owner による Chrome 実機確認で問題がなく、完了
 - Phase 4: 少人数への unpacked 配布継続を ADR-0002 で決定し、限定保守へ移行
@@ -129,7 +129,7 @@
 - 不完全な ZIP、上限超過、許可外通信、完全な URL のログ出力がない
 - Project ownerがChrome実機でメディアZIP出力を確認する
 - 追加権限と依存関係を承認し、ADR-0003をAcceptedにする
-- 限定配布向けのリリースノート、配布 ZIP、SHA-256、手動確認記録を作成する
+- 限定配布向けのCHANGELOG節、配布ZIP、SHA-256、手動確認記録を作成する
 
 自動検証とProject ownerによる実機確認の記録は[Phase 5 自動検証記録](reviews/phase5-automated-verification.md)を参照してください。手動確認項目の詳細は[メディアZIP手動テスト](testing/zip-export-checklist.md)に残しています。
 

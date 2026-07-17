@@ -95,7 +95,7 @@ pnpm release:prepare
 
 翻訳文言は`locales/en.yml`と`locales/ja.yml`で管理します。変更後は`pnpm i18n:generate`を実行し、生成されたTypeScriptとChrome manifest catalogを直接編集しないでください。
 
-`main`へマージされると、GitHub Actionsが`package.json`のバージョンを使ってReleaseを作成し、ZIPとSHA-256を添付します。
+配布物へ影響する変更が`main`へマージされると、GitHub Actionsが`package.json`のバージョンを使ってReleaseを作成し、ZIPとSHA-256を添付します。ドキュメント、テスト、CI、リリース補助scriptだけの変更ではReleaseを作成しません。
 
 ## ドキュメント
 
