@@ -186,4 +186,6 @@ Phase 2 の詳細な自動検証結果と残作業は[検証記録](reviews/phas
 - テスト用と本番用の設定・アイコンを取り違えていないことを確認
 - ロールバック可能な直前リリース成果物を保持
 
-`main`へ反映されると[Release workflow](../.github/workflows/release.yml)が`pnpm release:prepare`を再実行し、`v<version>` GitHub Releaseを作成して配布 ZIPとSHA-256を添付します。同名のReleaseまたはタグは上書きしません。workflowの成功と添付ファイルを確認するまで利用者へ案内しないでください。
+配布物へ影響する実装、locale、manifest設定、依存関係、バージョンの変更が`main`へ反映されると、[Release workflow](../.github/workflows/release.yml)が`pnpm release:prepare`を再実行し、`v<version>` GitHub Releaseを作成して配布ZIPとSHA-256を添付します。ドキュメント、テスト、CI、リリース補助scriptだけの変更ではReleaseを作成しません。
+
+同名のReleaseまたはタグは上書きしません。配布物へ影響する変更では、workflowの成功と添付ファイルを確認するまで利用者へ案内しないでください。

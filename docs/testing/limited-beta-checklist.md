@@ -5,7 +5,7 @@
 - [ ] テスター本人が参加に同意している
 - [ ] 権利が明確なテスト用Discordチャンネルを使う
 - [ ] 配布ZIPのSHA-256が一致している
-- [ ] リリースノートのバージョンとChrome表示のバージョンが一致している
+- [ ] GitHub ReleaseとChrome表示のバージョンが一致している
 - [ ] 権限が`activeTab`, `scripting`, `downloads`, `storage`だけである
 
 ## 基本操作

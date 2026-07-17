@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 import { verifyRelease } from './verify-release.mjs';
 import { writeReleaseChecksum } from './write-checksum.mjs';
+import { writeReleaseNotes } from './write-release-notes.mjs';
 
 const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const checks = ['i18n:check', 'lint', 'typecheck', 'test', 'format:check', 'zip'];
@@ -16,3 +17,4 @@ for (const script of checks) {
 
 await verifyRelease();
 await writeReleaseChecksum();
+await writeReleaseNotes();
