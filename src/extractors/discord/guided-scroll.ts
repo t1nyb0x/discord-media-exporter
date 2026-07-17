@@ -1,5 +1,13 @@
 import { findMessageScrollContainer, findMessageViewport } from './message-viewport';
 import { intersectRects, isElementVisibleInRect, type RectLike } from './visibility';
+import type { UserFacingError } from '../../domain/errors';
+import {
+  createTranslator,
+  type TranslationKey,
+  type TranslationParams,
+  type Translator,
+} from '../../shared/i18n';
+import { discordSpoilerLabelTerms } from '../../shared/generated-i18n';
 
 const SCROLL_RATIO = 0.8;
 const COLLECTION_LIMIT = 500;
@@ -31,7 +39,7 @@ export interface VisibleSpoilerRevealResult {
 }
 
 export type GuidedCollectionStartResult =
-  { ok: true; collectedCount: number } | { ok: false; message: string };
+  { ok: true; collectedCount: number } | { ok: false; error: UserFacingError };
 
 /** Moves the message container toward older posts by at most one visible page. */
 export function scrollOnePageBackward(
@@ -115,6 +123,12 @@ export class GuidedCollectionControls {
   private readonly revealButton: HTMLButtonElement;
   private readonly stopButton: HTMLButtonElement;
   private readonly status: HTMLSpanElement;
+  private readonly title: HTMLSpanElement;
+  private translator: Translator;
+  private statusMessage:
+    { key: TranslationKey; params?: TranslationParams } | { error: UserFacingError } = {
+    key: 'guide_inactive',
+  };
   private active = false;
   private starting = false;
   private limitReached = false;
@@ -122,12 +136,14 @@ export class GuidedCollectionControls {
   constructor(
     documentObject: Document,
     private readonly options: GuidedCollectionControlOptions,
+    translator: Translator = createTranslator('ja'),
   ) {
+    this.translator = translator;
     documentObject.getElementById(CONTROL_HOST_ID)?.remove();
     this.host = documentObject.createElement('div');
     this.host.id = CONTROL_HOST_ID;
     this.host.setAttribute('role', 'region');
-    this.host.setAttribute('aria-label', 'Discord Media Exporter ガイド付き収集');
+    this.host.setAttribute('aria-label', this.translator.t('guide_aria'));
 
     const shadow = this.host.attachShadow({ mode: 'open' });
     const style = documentObject.createElement('style');
@@ -171,37 +187,30 @@ export class GuidedCollectionControls {
 
     const panel = documentObject.createElement('div');
     panel.className = 'panel';
-    const title = documentObject.createElement('span');
-    title.className = 'title';
-    title.textContent = 'ガイド付き収集';
+    this.title = documentObject.createElement('span');
+    this.title.className = 'title';
     this.status = documentObject.createElement('span');
     this.status.className = 'status';
     this.status.setAttribute('aria-live', 'polite');
-    this.status.textContent = '操作ごとに選択した方向へ1画面だけ移動します。';
 
     const actions = documentObject.createElement('div');
     actions.className = 'actions';
     this.startButton = documentObject.createElement('button');
     this.startButton.type = 'button';
-    this.startButton.textContent = '自動収集を開始';
     this.startButton.addEventListener('click', this.handleStart);
     this.backwardButton = documentObject.createElement('button');
     this.backwardButton.type = 'button';
-    this.backwardButton.textContent = '1画面戻る';
     this.backwardButton.addEventListener('click', this.handleBackwardStep);
     this.forwardButton = documentObject.createElement('button');
     this.forwardButton.type = 'button';
-    this.forwardButton.textContent = '1画面進む';
     this.forwardButton.addEventListener('click', this.handleForwardStep);
     this.revealButton = documentObject.createElement('button');
     this.revealButton.type = 'button';
     this.revealButton.className = 'secondary';
-    this.revealButton.textContent = '表示中のスポイラーを解除';
     this.revealButton.addEventListener('click', this.handleReveal);
     this.stopButton = documentObject.createElement('button');
     this.stopButton.type = 'button';
     this.stopButton.className = 'secondary';
-    this.stopButton.textContent = '停止';
     this.stopButton.addEventListener('click', this.handleStop);
 
     actions.append(
@@ -211,14 +220,22 @@ export class GuidedCollectionControls {
       this.revealButton,
       this.stopButton,
     );
-    panel.append(title, this.status, actions);
+    panel.append(this.title, this.status, actions);
     shadow.append(style, panel);
     documentObject.body.append(this.host);
+    this.renderStaticText();
     this.showInactive();
   }
 
+  /** Re-renders the existing controls without changing collection state. */
+  setTranslator(translator: Translator): void {
+    this.translator = translator;
+    this.renderStaticText();
+    this.renderStatus();
+  }
+
   /** Shows the explicit collection launcher without scanning the page. */
-  showInactive(message = '自動収集は停止中です。開始すると表示中の添付を収集します。'): void {
+  showInactive(error?: UserFacingError): void {
     this.active = false;
     this.starting = false;
     this.limitReached = false;
@@ -228,7 +245,8 @@ export class GuidedCollectionControls {
     this.forwardButton.hidden = true;
     this.revealButton.hidden = true;
     this.stopButton.hidden = true;
-    this.status.textContent = message;
+    this.statusMessage = error === undefined ? { key: 'guide_inactive' } : { error };
+    this.renderStatus();
   }
 
   /** Shows the controls for an active collection session. */
@@ -251,14 +269,14 @@ export class GuidedCollectionControls {
       this.backwardButton.disabled = true;
       this.forwardButton.disabled = true;
       this.revealButton.disabled = true;
-      this.status.textContent = `収集上限の${COLLECTION_LIMIT}件に達しました。`;
+      this.setStatus('guide_limit', { limit: COLLECTION_LIMIT });
       return;
     }
     this.limitReached = false;
     this.backwardButton.disabled = false;
     this.forwardButton.disabled = false;
     this.revealButton.disabled = false;
-    this.status.textContent = `${count}件を収集中です。`;
+    this.setStatus('guide_collecting', { count });
   }
 
   /** Detaches event listeners and removes the injected control host. */
@@ -276,17 +294,17 @@ export class GuidedCollectionControls {
     if (this.active || this.starting) return;
     this.starting = true;
     this.startButton.disabled = true;
-    this.status.textContent = '自動収集を開始しています…';
+    this.setStatus('guide_starting');
     void this.options
       .onStart()
       .then((result) => {
         if (result.ok) {
           this.showActive(result.collectedCount);
         } else {
-          this.showInactive(result.message);
+          this.showInactive(result.error);
         }
       })
-      .catch(() => this.showInactive('自動収集を開始できませんでした。'));
+      .catch(() => this.showInactive({ code: 'COLLECTOR_START_FAILED' }));
   };
 
   /** Handles one explicit backward-scroll action. */
@@ -295,13 +313,11 @@ export class GuidedCollectionControls {
     this.backwardButton.disabled = true;
     const result = this.options.onStepBackward();
     if (result.status === 'moved') {
-      this.status.textContent = result.reachedStart
-        ? '上端へ移動しました。読み込み後、必要ならもう一度押してください。'
-        : '1画面戻りました。表示された候補を収集します。';
+      this.setStatus(result.reachedStart ? 'guide_reached_start' : 'guide_moved_back');
     } else if (result.status === 'at_start') {
-      this.status.textContent = '現在は上端です。古い投稿の読み込み後にもう一度押してください。';
+      this.setStatus('guide_at_start');
     } else {
-      this.status.textContent = 'メッセージのスクロール領域を確認できませんでした。';
+      this.setStatus('guide_scroll_unavailable');
     }
     this.backwardButton.disabled = false;
   };
@@ -312,13 +328,11 @@ export class GuidedCollectionControls {
     this.forwardButton.disabled = true;
     const result = this.options.onStepForward();
     if (result.status === 'moved') {
-      this.status.textContent = result.reachedEnd
-        ? '下端へ移動しました。新しい投稿の表示後、必要ならもう一度押してください。'
-        : '1画面進みました。表示された候補を収集します。';
+      this.setStatus(result.reachedEnd ? 'guide_reached_end' : 'guide_moved_forward');
     } else if (result.status === 'at_end') {
-      this.status.textContent = '現在は下端です。新しい投稿の表示後にもう一度押してください。';
+      this.setStatus('guide_at_end');
     } else {
-      this.status.textContent = 'メッセージのスクロール領域を確認できませんでした。';
+      this.setStatus('guide_scroll_unavailable');
     }
     this.forwardButton.disabled = false;
   };
@@ -334,14 +348,39 @@ export class GuidedCollectionControls {
     this.revealButton.disabled = true;
     const result = this.options.onRevealSpoilers();
     if (result.revealed === 0 && result.failed === 0) {
-      this.status.textContent = '現在の表示範囲に解除できるスポイラーはありません。';
+      this.setStatus('guide_no_spoilers');
     } else if (result.failed === 0) {
-      this.status.textContent = `${result.revealed}件のスポイラーを解除しました。表示後に収集します。`;
+      this.setStatus('guide_spoilers_revealed', { revealed: result.revealed });
     } else {
-      this.status.textContent = `${result.revealed}件を解除し、${result.failed}件は解除できませんでした。`;
+      this.setStatus('guide_spoilers_partial', {
+        revealed: result.revealed,
+        failed: result.failed,
+      });
     }
     this.revealButton.disabled = false;
   };
+
+  private renderStaticText(): void {
+    this.host.setAttribute('aria-label', this.translator.t('guide_aria'));
+    this.title.textContent = this.translator.t('guide_title');
+    this.startButton.textContent = this.translator.t('guide_start');
+    this.backwardButton.textContent = this.translator.t('guide_back');
+    this.forwardButton.textContent = this.translator.t('guide_forward');
+    this.revealButton.textContent = this.translator.t('guide_reveal');
+    this.stopButton.textContent = this.translator.t('guide_stop');
+  }
+
+  private setStatus(key: TranslationKey, params?: TranslationParams): void {
+    this.statusMessage = params === undefined ? { key } : { key, params };
+    this.renderStatus();
+  }
+
+  private renderStatus(): void {
+    this.status.textContent =
+      'error' in this.statusMessage
+        ? this.translator.error(this.statusMessage.error)
+        : this.translator.t(this.statusMessage.key, this.statusMessage.params);
+  }
 }
 
 /** Returns the visible portion of the Discord message viewport. */
@@ -359,5 +398,5 @@ function visibleMessageRect(messageViewport: Element, windowObject: Window): Rec
 /** Reports whether an accessible control label identifies a spoiler action. */
 function isSpoilerControl(element: Element): boolean {
   const label = element.getAttribute('aria-label')?.normalize('NFKC').toLocaleLowerCase() ?? '';
-  return label.includes('spoiler') || label.includes('スポイラー') || label.includes('ネタバレ');
+  return discordSpoilerLabelTerms.some((term) => label.includes(term));
 }

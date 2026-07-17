@@ -30,6 +30,7 @@ import {
   type ExtensionResponse,
 } from '../src/shared/messages';
 import { isOffscreenZipRequest, isZipBackgroundEvent } from '../src/shared/zip-messages';
+import { DomainError, userFacingError } from '../src/domain/errors';
 
 const OFFSCREEN_URL = `chrome-extension://${browser.runtime.id}/offscreen.html`;
 
@@ -64,7 +65,7 @@ export default defineBackground(() => {
     }
 
     if (sender.id !== browser.runtime.id || !isExtensionRequest(message)) {
-      return { ok: false, error: '不正なリクエストです。' };
+      return { ok: false, error: { code: 'INVALID_REQUEST' } };
     }
     return dispatchExtensionRequest(message);
   });
@@ -83,12 +84,12 @@ async function dispatchExtensionRequest(message: ExtensionRequest): Promise<Exte
         return { ok: true, type: 'SCAN_COLLECTION', collection };
       }
       case 'CLEAR_SCAN_COLLECTION': {
-        if (await hasActiveZipExport()) throw new Error('ZIP出力の完了後にクリアしてください。');
+        if (await hasActiveZipExport()) throw new DomainError({ code: 'ZIP_ACTIVE_CLEAR' });
         const collection = await clearCandidateCollection(message.scope);
         return { ok: true, type: 'SCAN_COLLECTION_CLEARED', collection };
       }
       case 'START_DOWNLOADS': {
-        if (await hasActiveZipExport()) throw new Error('ZIP出力の完了後に保存してください。');
+        if (await hasActiveZipExport()) throw new DomainError({ code: 'ZIP_ACTIVE_DOWNLOAD' });
         const state = await startDownloads(message.candidateIds);
         return { ok: true, type: 'DOWNLOADS_STARTED', state };
       }
@@ -98,7 +99,7 @@ async function dispatchExtensionRequest(message: ExtensionRequest): Promise<Exte
       }
       case 'START_ZIP_EXPORT': {
         if (await hasActiveDownloads()) {
-          throw new Error('個別ダウンロードの完了後にZIPを作成してください。');
+          throw new DomainError({ code: 'DOWNLOADS_ACTIVE_ZIP' });
         }
         const candidates = await getRegisteredCandidates(message.candidateIds);
         const state = await startZipExport(candidates);
@@ -128,7 +129,7 @@ async function dispatchExtensionRequest(message: ExtensionRequest): Promise<Exte
   } catch (error) {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : '処理に失敗しました。',
+      error: userFacingError(error),
     };
   }
 }

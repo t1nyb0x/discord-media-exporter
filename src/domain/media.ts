@@ -1,3 +1,5 @@
+import type { UserFacingError } from './errors';
+
 export type MediaKind = 'image' | 'video' | 'file';
 
 export type CandidateSource = 'anchor' | 'image' | 'video';
@@ -18,8 +20,7 @@ export type ScanErrorCode =
   | 'SCAN_FAILED';
 
 export type ScanResult =
-  | { ok: true; scope: string; candidates: MediaCandidate[] }
-  | { ok: false; code: ScanErrorCode; message: string };
+  { ok: true; scope: string; candidates: MediaCandidate[] } | { ok: false; code: ScanErrorCode };
 
 export interface CandidateCollection {
   scope: string | null;
@@ -33,7 +34,7 @@ export interface DownloadItemState {
   filename: string;
   status: DownloadStatus;
   downloadId?: number;
-  error?: string;
+  error?: UserFacingError;
 }
 
 export interface DownloadBatchState {
@@ -53,5 +54,5 @@ export interface ZipExportState {
   outputBytes?: number;
   currentFilename?: string;
   downloadId?: number;
-  error?: string;
+  error?: UserFacingError;
 }

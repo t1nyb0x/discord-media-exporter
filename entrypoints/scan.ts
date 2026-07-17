@@ -12,6 +12,17 @@ import { isValidMediaCandidate } from '../src/domain/validation';
 import { VisibleMediaCollector } from '../src/extractors/discord/visible-media-collector';
 import { isCollectorRequest, type CollectorResponse } from '../src/shared/collector-messages';
 import { isRecord } from '../src/shared/messages';
+import {
+  createTranslator,
+  resolveLocale,
+  type LocalePreference,
+  type Translator,
+} from '../src/shared/i18n';
+import {
+  chromeUiLanguage,
+  loadResolvedLocale,
+  LOCALE_PREFERENCE_KEY,
+} from '../src/platform/chrome/locale-setting';
 
 interface CollectorController {
   collector: VisibleMediaCollector | null;
@@ -23,6 +34,8 @@ interface CollectorController {
   launcherVisible: boolean;
   persistentLauncher: boolean;
   startPromise: Promise<CollectorResponse> | null;
+  translator: Translator;
+  localeListenerRegistered: boolean;
 }
 
 declare global {
@@ -47,6 +60,7 @@ export default defineUnlistedScript({
       controls.showInactive();
     }
     void restorePersistentLauncherMode(controller);
+    void restoreLocale(controller);
     return { active: controller.collector?.isActive() ?? false };
   },
 });
@@ -63,6 +77,8 @@ function getCollectorController(): CollectorController {
     launcherVisible: false,
     persistentLauncher: false,
     startPromise: null,
+    translator: createTranslator(resolveLocale('auto', chromeUiLanguage())),
+    localeListenerRegistered: false,
   };
   const controller = globalThis.__discordMediaExporterCollector__;
   if (controller.controls === undefined) controller.controls = null;
@@ -74,6 +90,24 @@ function getCollectorController(): CollectorController {
   if (controller.launcherVisible === undefined) controller.launcherVisible = false;
   if (controller.persistentLauncher === undefined) controller.persistentLauncher = false;
   if (controller.startPromise === undefined) controller.startPromise = null;
+  if (controller.translator === undefined)
+    controller.translator = createTranslator(resolveLocale('auto', chromeUiLanguage()));
+  if (controller.localeListenerRegistered === undefined)
+    controller.localeListenerRegistered = false;
+  if (!controller.localeListenerRegistered) {
+    try {
+      browser.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName !== 'local' || changes[LOCALE_PREFERENCE_KEY] === undefined) return;
+        const next = changes[LOCALE_PREFERENCE_KEY].newValue;
+        const preference: LocalePreference = next === 'ja' || next === 'en' ? next : 'auto';
+        controller.translator = createTranslator(resolveLocale(preference, chromeUiLanguage()));
+        controller.controls?.setTranslator(controller.translator);
+      });
+    } catch {
+      // Older test/browser environments may not expose storage change events.
+    }
+    controller.localeListenerRegistered = true;
+  }
   if (!controller.listenerRegistered) {
     browser.runtime.onMessage.addListener((message): Promise<CollectorResponse> | undefined => {
       if (!isCollectorRequest(message)) return undefined;
@@ -150,7 +184,7 @@ async function startCollectorOnce(controller: CollectorController): Promise<Coll
   );
   const result = collector.start();
   if (!result.ok) {
-    return { type: 'MEDIA_COLLECTOR_START_FAILED', active: false, error: result.message };
+    return { type: 'MEDIA_COLLECTOR_START_FAILED', active: false, error: { code: result.code } };
   }
 
   startedScope = result.scope;
@@ -161,7 +195,7 @@ async function startCollectorOnce(controller: CollectorController): Promise<Coll
       return {
         type: 'MEDIA_COLLECTOR_START_FAILED',
         active: false,
-        error: '自動収集の開始が中断されました。',
+        error: { code: 'COLLECTOR_START_INTERRUPTED' },
       };
     }
     controller.collectedCount = collection.candidates.length;
@@ -177,7 +211,7 @@ async function startCollectorOnce(controller: CollectorController): Promise<Coll
     return {
       type: 'MEDIA_COLLECTOR_START_FAILED',
       active: false,
-      error: '収集結果を登録できませんでした。',
+      error: { code: 'COLLECTION_REGISTER_FAILED' },
     };
   }
 }
@@ -198,7 +232,7 @@ async function registerScanResult(
     !isCandidateCollection(response.collection) ||
     response.collection.scope !== result.scope
   ) {
-    throw new Error('収集結果を登録できませんでした。');
+    throw new Error('Collection registration failed');
   }
   return response.collection;
 }
@@ -207,34 +241,45 @@ async function registerScanResult(
 function ensureControls(controller: CollectorController): GuidedCollectionControls {
   if (controller.controls !== null) return controller.controls;
 
-  const controls = new GuidedCollectionControls(document, {
-    onStart: async () => {
-      const response = await startCollector(controller);
-      if (response.type === 'MEDIA_COLLECTOR_STARTED') {
-        return { ok: true, collectedCount: response.collection.candidates.length };
-      }
-      if (response.type === 'MEDIA_COLLECTOR_STATUS' && response.active) {
-        return { ok: true, collectedCount: controller.collectedCount };
-      }
-      return {
-        ok: false,
-        message:
-          response.type === 'MEDIA_COLLECTOR_START_FAILED'
-            ? response.error
-            : '自動収集を開始できませんでした。',
-      };
+  const controls = new GuidedCollectionControls(
+    document,
+    {
+      onStart: async () => {
+        const response = await startCollector(controller);
+        if (response.type === 'MEDIA_COLLECTOR_STARTED') {
+          return { ok: true, collectedCount: response.collection.candidates.length };
+        }
+        if (response.type === 'MEDIA_COLLECTOR_STATUS' && response.active) {
+          return { ok: true, collectedCount: controller.collectedCount };
+        }
+        return {
+          ok: false,
+          error:
+            response.type === 'MEDIA_COLLECTOR_START_FAILED'
+              ? response.error
+              : { code: 'COLLECTOR_START_FAILED' },
+        };
+      },
+      onStepBackward: () => scrollOnePageBackward(document, window),
+      onStepForward: () => scrollOnePageForward(document, window),
+      onRevealSpoilers: () => revealVisibleSpoilers(document, window),
+      onStop: () => {
+        controller.collector?.stop();
+        controller.collector = null;
+        showInactiveOrRemove(controller);
+      },
     },
-    onStepBackward: () => scrollOnePageBackward(document, window),
-    onStepForward: () => scrollOnePageForward(document, window),
-    onRevealSpoilers: () => revealVisibleSpoilers(document, window),
-    onStop: () => {
-      controller.collector?.stop();
-      controller.collector = null;
-      showInactiveOrRemove(controller);
-    },
-  });
+    controller.translator,
+  );
   controller.controls = controls;
   return controls;
+}
+
+/** Applies the persisted locale without replacing controls or collector state. */
+async function restoreLocale(controller: CollectorController): Promise<void> {
+  const { locale } = await loadResolvedLocale();
+  controller.translator = createTranslator(locale);
+  controller.controls?.setTranslator(controller.translator);
 }
 
 /** Returns the current collector activity without exposing page data. */

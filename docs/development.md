@@ -79,6 +79,9 @@
 35. [x] 明示操作による表示中スポイラー解除とAccepted ADR-0007
 36. [x] 可視範囲・aria-label・最大50件・通常button除外の自動テスト
 37. [x] 実Discordでスポイラー解除と解除後収集を確認
+38. [x] 日本語・英語catalog、Chrome locale解決、popup上書き、即時再描画を実装
+39. [x] domain・context間状態の利用者向けエラーを安定codeと検証済みparamsへ移行
+40. [ ] Chrome StableでChrome言語追従、三択上書き、popup・収集中ガイドの即時切替を確認
 
 ## 5. ローカル確認手順
 
@@ -117,6 +120,21 @@ Windows と macOS の一般ユーザーへ、自前サーバー上の `.crx` を
 DOM セレクターを更新する変更には、必ず再現 fixture とテストを含めます。
 
 ## 7. 手動スモークテスト
+
+### 翻訳を追加・変更する
+
+1. `locales/en.yml`の英語catalogを基準にkeyを追加し、同じ変更で`locales/ja.yml`も更新する。
+2. 両言語でplaceholder名と個数を一致させる。利用者入力やファイル名は翻訳せず、検証済みparamsとして渡す。
+3. domain、永続化state、context間messageには翻訳済み文言を入れず、`UserFacingErrorCode`とallowlist済みparamsを使う。
+4. manifestの名称・説明は各YAMLの`manifest`を変更する。`public/_locales`や`src/shared/generated-i18n.ts`は直接編集しない。
+5. `pnpm i18n:generate`でruntime catalogとmanifest catalogを生成する。
+6. `pnpm i18n:check`で生成物、key集合、placeholder、値の型を検証し、`pnpm test`でlocale解決とfallbackを確認する。
+
+Discordのスポイラー解除buttonを識別する`aria-label`語は、各YAMLの`discord.spoiler_label_terms`へ、そのDiscord UI言語で実際に使われる語幹を追加します。これは表示翻訳ではありません。Discordと拡張の言語設定が異なる場合に備え、生成時に全localeの語を正規化・統合します。通常buttonを誤認しない語を選び、fixtureテストを追加してください。
+
+YAMLは将来のCrowdin等との連携を妨げないsource-of-truthです。外部翻訳serviceを導入するまでは日英両方をリポジトリで管理し、導入後は英語をsource、他言語を生成されるtranslationとして扱います。
+
+地域variantのYAML名は`zh-CN.yml`のようなBCP 47形式にします。生成scriptはruntimeではその名前を使い、Chrome manifest用ディレクトリだけ`zh_CN`形式へ変換します。
 
 ### 実施記録
 

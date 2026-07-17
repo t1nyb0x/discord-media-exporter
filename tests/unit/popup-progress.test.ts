@@ -39,12 +39,17 @@ describe('popup download progress', () => {
             filename: 'movie.mp4',
             status: 'failed',
             downloadId: 2,
-            error: 'ダウンロードが中断されました (SERVER_FORBIDDEN)。',
+            error: { code: 'DOWNLOAD_INTERRUPTED', params: { reason: 'SERVER_FORBIDDEN' } },
           },
         ],
       },
     });
     loadPopupFixture();
+
+    expect(document.getElementById('notice')?.getAttribute('aria-live')).toBe('polite');
+
+    await import('../../entrypoints/popup/main');
+    await Promise.resolve();
 
     expect(document.documentElement.lang).toBe('ja');
     expect(document.querySelector('label[for="kind-filter"]')).not.toBeNull();
@@ -53,10 +58,6 @@ describe('popup download progress', () => {
         (button) => button.textContent?.trim() !== '',
       ),
     ).toBe(true);
-    expect(document.getElementById('notice')?.getAttribute('aria-live')).toBe('polite');
-
-    await import('../../entrypoints/popup/main');
-    await Promise.resolve();
     await Promise.resolve();
 
     expect(document.getElementById('progress')?.hidden).toBe(false);

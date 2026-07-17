@@ -1,4 +1,5 @@
 import type { CandidateCollection } from '../domain/media';
+import type { UserFacingError } from '../domain/errors';
 
 export type CollectorRequest =
   | { type: 'GET_MEDIA_COLLECTOR_STATUS' }
@@ -15,7 +16,7 @@ export type CollectorResponse =
       collection: CandidateCollection;
       visibleCandidateCount: number;
     }
-  | { type: 'MEDIA_COLLECTOR_START_FAILED'; active: false; error: string };
+  | { type: 'MEDIA_COLLECTOR_START_FAILED'; active: false; error: UserFacingError };
 
 /** Validates a popup-to-collector control message. */
 export function isCollectorRequest(value: unknown): value is CollectorRequest {

@@ -5,10 +5,11 @@ import {
   createZipArchiveFilename,
   isActiveZipStatus,
   prepareZipEntries,
-  zipExportErrorMessage,
   type ZipExportErrorCode,
 } from '../../domain/zip-export';
+import { DomainError, isUserFacingError, type UserFacingError } from '../../domain/errors';
 import type { MediaCandidate } from '../../domain/media';
+import { sanitizeFilename } from '../../domain/filename';
 import { isRecord } from '../../shared/messages';
 import { ZIP_HOST_ORIGINS } from '../../shared/permissions';
 import type { OffscreenZipRequest, ZipBackgroundEvent } from '../../shared/zip-messages';
@@ -29,7 +30,7 @@ class ChromeZipExportManager {
   /** Starts a new ZIP job after persisting its initial state. */
   async start(candidates: MediaCandidate[]): Promise<ZipExportState> {
     await this.ensureInitialized();
-    if (isActiveZipStatus(this.state.status)) throw new Error('ZIP出力は既に進行中です。');
+    if (isActiveZipStatus(this.state.status)) throw new DomainError({ code: 'ZIP_ALREADY_ACTIVE' });
 
     const entries = prepareZipEntries(candidates);
     const jobId = crypto.randomUUID();
@@ -70,7 +71,7 @@ class ChromeZipExportManager {
     const jobId = this.state.jobId;
     const downloadId = this.state.downloadId;
     this.state.status = 'cancelled';
-    this.state.error = 'ZIP出力をキャンセルしました。';
+    this.state.error = { code: 'ZIP_CANCELLED' };
     delete this.state.currentFilename;
     await this.persist();
 
@@ -119,7 +120,7 @@ class ChromeZipExportManager {
       case 'ZIP_FAILED':
         if (event.cancelled === true) {
           this.state.status = 'cancelled';
-          this.state.error = 'ZIP出力をキャンセルしました。';
+          this.state.error = { code: 'ZIP_CANCELLED' };
           delete this.state.currentFilename;
           await this.persist();
           await cleanupJob(event.jobId);
@@ -183,7 +184,7 @@ class ChromeZipExportManager {
   private async restore(): Promise<void> {
     const stored = await browser.storage.session.get(ZIP_STATE_KEY);
     if (isZipExportState(stored[ZIP_STATE_KEY])) {
-      this.state = { ...stored[ZIP_STATE_KEY] };
+      this.state = migrateZipExportState(stored[ZIP_STATE_KEY]);
     }
 
     if (this.state.status === 'saving' && this.state.downloadId !== undefined) {
@@ -191,7 +192,7 @@ class ChromeZipExportManager {
       if (download?.state === 'complete') this.state.status = 'complete';
       else if (download?.state === 'interrupted' || download === undefined) {
         this.state.status = 'failed';
-        this.state.error = zipExportErrorMessage(downloadFailureCode(download?.error));
+        this.state.error = zipError(downloadFailureCode(download?.error));
       }
       await this.persist();
       if (!isActiveZipStatus(this.state.status) && this.state.jobId !== undefined) {
@@ -203,7 +204,7 @@ class ChromeZipExportManager {
     if (this.state.status === 'fetching' || this.state.status === 'packing') {
       if (!(await hasOffscreenDocument())) {
         this.state.status = 'failed';
-        this.state.error = zipExportErrorMessage('CONTEXT_LOST');
+        this.state.error = zipError('CONTEXT_LOST');
         await this.persist();
         if (this.state.jobId !== undefined) await cleanupJob(this.state.jobId);
       }
@@ -214,7 +215,7 @@ class ChromeZipExportManager {
   private async setFailed(code: ZipExportErrorCode, filename?: string): Promise<void> {
     const jobId = this.state.jobId;
     this.state.status = 'failed';
-    this.state.error = zipExportErrorMessage(code, filename);
+    this.state.error = zipError(code, filename);
     delete this.state.currentFilename;
     await this.persist();
     if (jobId !== undefined) await cleanupJob(jobId);
@@ -229,7 +230,7 @@ class ChromeZipExportManager {
       delete this.state.error;
     } else {
       this.state.status = 'failed';
-      this.state.error = zipExportErrorMessage(downloadFailureCode(reason));
+      this.state.error = zipError(downloadFailureCode(reason));
     }
     await this.persist();
     if (jobId !== undefined) await cleanupJob(jobId);
@@ -317,7 +318,11 @@ function isExtensionBlobUrl(value: string): boolean {
 }
 
 /** Validates the minimum persisted fields required to restore ZIP export state. */
-function isZipExportState(value: unknown): value is ZipExportState {
+type PersistedZipExportState = Omit<ZipExportState, 'error'> & {
+  error?: UserFacingError | string;
+};
+
+function isZipExportState(value: unknown): value is PersistedZipExportState {
   if (!isRecord(value)) return false;
   return (
     ['idle', 'fetching', 'packing', 'saving', 'complete', 'failed', 'cancelled'].includes(
@@ -325,8 +330,25 @@ function isZipExportState(value: unknown): value is ZipExportState {
     ) &&
     typeof value.totalItems === 'number' &&
     typeof value.completedItems === 'number' &&
-    typeof value.processedBytes === 'number'
+    typeof value.processedBytes === 'number' &&
+    (value.error === undefined || typeof value.error === 'string' || isUserFacingError(value.error))
   );
+}
+
+function migrateZipExportState(value: PersistedZipExportState): ZipExportState {
+  const { error, ...state } = value;
+  return {
+    ...state,
+    ...(error === undefined
+      ? {}
+      : { error: typeof error === 'string' ? { code: 'CONTEXT_LOST' } : error }),
+  };
+}
+
+function zipError(code: ZipExportErrorCode, filename?: string): UserFacingError {
+  return filename === undefined
+    ? { code }
+    : { code, params: { filename: sanitizeFilename(filename) } };
 }
 
 /** Restricts a number to an inclusive range. */

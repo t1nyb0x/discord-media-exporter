@@ -2,6 +2,27 @@
 
 このプロジェクトの利用者向け変更を記録します。バージョンは Semantic Versioning に従います。
 
+## [0.10.0] - 2026-07-17
+
+### Added
+
+- ChromeのUI言語に追従する日本語・英語catalogと、未対応言語の英語fallback
+- popupの「自動・日本語・English」表示言語設定
+- locale別のmanifest名称・説明を配布する`_locales` catalog
+
+### Changed
+
+- popupとDiscord上のガイドを、collectorや選択状態を再生成せず言語変更時に即時再描画
+- domain、download・ZIP状態、context間応答の利用者向けエラーを翻訳済み文字列から安定codeと検証済みparamsへ移行
+- 旧sessionに残る文字列エラーを復元時に汎用error codeへ変換
+- 日英の翻訳元を`locales/*.yml`へ分離し、runtime catalogとmanifest catalogを検証付きで自動生成
+- Discordのスポイラー解除`aria-label`判定語をlocale YAMLへ移し、全対応言語の辞書から生成
+
+### Security
+
+- 動的文言、ファイル名、エラーparamsは`textContent`と属性APIだけで表示し、HTMLとして注入しない
+- locale、error code、error paramsをallowlistで検証し、追加権限・外部翻訳サービス・依存関係を追加しない
+
 ## [0.9.0] - 2026-07-17
 
 ### Added

@@ -1,5 +1,6 @@
 import { sanitizeFilename } from './filename';
 import type { MediaCandidate, ZipExportState, ZipExportStatus } from './media';
+import { DomainError } from './errors';
 
 export interface ZipEntryCandidate {
   candidateId: string;
@@ -19,7 +20,7 @@ export type ZipExportErrorCode =
 
 /** Converts selected candidates into ordered, uniquely named ZIP entries. */
 export function prepareZipEntries(candidates: MediaCandidate[]): ZipEntryCandidate[] {
-  if (candidates.length === 0) throw new Error('ZIPに保存するメディアを選択してください。');
+  if (candidates.length === 0) throw new DomainError({ code: 'ZIP_SELECTION_REQUIRED' });
 
   const usedNames = new Set<string>();
   const sequenceWidth = Math.max(3, String(candidates.length).length);
@@ -63,29 +64,6 @@ export function createZipArchiveFilename(date = new Date()): string {
   return `discord-media-${parts.join('')}.zip`;
 }
 
-/** Maps an internal ZIP failure code to a safe user-facing message. */
-export function zipExportErrorMessage(code: ZipExportErrorCode, filename?: string): string {
-  const target = filename === undefined ? '' : `「${sanitizeFilename(filename)}」を`;
-  switch (code) {
-    case 'FETCH_FAILED':
-      return `${target}取得できませんでした。再スキャンしてから試してください。`;
-    case 'INVALID_REDIRECT':
-      return `${target}安全な取得先として確認できませんでした。`;
-    case 'STORAGE_QUOTA_EXCEEDED':
-      return 'ZIP一時ファイルを保存する空き容量が不足しています。';
-    case 'TEMP_WRITE_FAILED':
-      return 'ZIP一時ファイルへ書き込めませんでした。';
-    case 'ZIP_FAILED':
-      return 'ZIPを生成できませんでした。';
-    case 'SAVE_FAILED':
-      return '生成したZIPの保存を開始できませんでした。';
-    case 'DOWNLOAD_NO_SPACE':
-      return '保存先ディスクの空き容量が不足しているため、ZIPを保存できませんでした。';
-    case 'CONTEXT_LOST':
-      return 'ZIP生成状態を復元できませんでした。もう一度実行してください。';
-  }
-}
-
 /** Reserves a case-insensitively unique, sanitized ZIP entry filename. */
 function uniqueFilename(input: string, usedNames: Set<string>): string {
   const safeName = sanitizeFilename(input);
@@ -106,7 +84,7 @@ function uniqueFilename(input: string, usedNames: Set<string>): string {
     return candidate;
   }
 
-  throw new Error('ZIP内のファイル名を一意にできませんでした。');
+  throw new DomainError({ code: 'ZIP_FILENAME_CONFLICT' });
 }
 
 /** Separates a short filename extension from its basename. */

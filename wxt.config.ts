@@ -2,8 +2,9 @@ import { defineConfig } from 'wxt';
 
 export default defineConfig({
   manifest: {
-    name: 'Discord Media Exporter',
-    description: '表示中の Discord メディアを選択して保存します。',
+    name: '__MSG_extension_name__',
+    description: '__MSG_extension_description__',
+    default_locale: 'en',
     permissions: ['activeTab', 'scripting', 'downloads', 'storage', 'offscreen'],
     optional_host_permissions: [
       'https://discord.com/*',
