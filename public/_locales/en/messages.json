@@ -1,0 +1,8 @@
+{
+  "extension_name": {
+    "message": "Discord Media Exporter"
+  },
+  "extension_description": {
+    "message": "Select and save Discord media currently visible on screen."
+  }
+}

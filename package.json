@@ -1,6 +1,6 @@
 {
   "name": "discord-media-exporter",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -10,6 +10,8 @@
     "node": ">=24.0.0 <25"
   },
   "scripts": {
+    "i18n:generate": "node scripts/generate-i18n.mjs",
+    "i18n:check": "node scripts/generate-i18n.mjs --check",
     "dev": "wxt",
     "build": "wxt build",
     "zip": "wxt zip",
@@ -33,7 +35,8 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.64.0",
     "vitest": "4.1.10",
-    "wxt": "0.20.27"
+    "wxt": "0.20.27",
+    "yaml": "2.9.0"
   },
   "dependencies": {
     "fflate": "0.8.3"
